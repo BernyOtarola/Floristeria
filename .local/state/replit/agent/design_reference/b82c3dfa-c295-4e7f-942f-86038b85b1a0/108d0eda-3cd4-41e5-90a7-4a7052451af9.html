@@ -1,0 +1,967 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FloraVista - Catálogo de Flores Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#E91E63',
+                        'primary-light': '#F48FB1',
+                        secondary: '#4CAF50',
+                        'secondary-light': '#81C784',
+                        accent: '#FF9800',
+                        'accent-light': '#FFC107'
+                    },
+                    fontFamily: {
+                        'serif': ['Playfair Display', 'serif'],
+                        'sans': ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Navigation -->
+    <!-- @COMPONENT: Navigation [sticky header with logo, menu, cart icon] -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-serif font-bold text-primary">FloraVista</h1>
+                    <span class="ml-2 text-sm text-gray-600">Floristería Premium</span>
+                </div>
+                
+                <div class="hidden md:flex space-x-8">
+                    <a href="#inicio" class="text-gray-700 hover:text-primary transition-colors">Inicio</a>
+                    <a href="#catalogo" class="text-gray-700 hover:text-primary transition-colors">Catálogo</a>
+                    <a href="#nosotros" class="text-gray-700 hover:text-primary transition-colors">Nosotros</a>
+                    <a href="#contacto" class="text-gray-700 hover:text-primary transition-colors">Contacto</a>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <button data-event="click:toggleCart" class="relative p-2 text-gray-600 hover:text-primary transition-colors">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span data-bind="cartItemCount" class="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                    </button>
+                    <button class="md:hidden p-2 text-gray-600">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <!-- @END_COMPONENT: Navigation -->
+
+    <!-- Hero Section -->
+    <!-- @COMPONENT: HeroSection [banner with background image and CTA] -->
+    <section id="inicio" class="relative h-96 md:h-[500px] flex items-center justify-center">
+        <!-- A beautiful flower shop interior with colorful fresh flower arrangements -->
+        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('https://images.unsplash.com/photo-1563241527-3004b7be0ffd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&h=1080');"></div>
+        <div class="absolute inset-0 bg-black bg-opacity-40"></div>
+        <div class="relative text-center text-white px-4 max-w-4xl mx-auto">
+            <h2 class="text-4xl md:text-6xl font-serif font-bold mb-4">Flores Frescas para Cada Ocasión</h2>
+            <p class="text-xl md:text-2xl mb-8 font-light">Descubre nuestra colección premium de arreglos florales únicos</p>
+            <button data-event="click:scrollToCatalog" class="bg-primary hover:bg-pink-600 text-white px-8 py-3 rounded-full text-lg font-medium transition-all transform hover:scale-105">
+                Ver Catálogo
+            </button>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: HeroSection -->
+
+    <!-- Categories Section -->
+    <!-- @COMPONENT: CategoriesSection [product categories grid] -->
+    <section id="catalogo" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-4">Nuestras Categorías</h2>
+                <p class="text-lg text-gray-600 max-w-2xl mx-auto">Explora nuestra amplia selección de flores y arreglos para todas tus ocasiones especiales</p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+                <!-- @MAP: categories.map(category => ( -->
+                <div data-event="click:selectCategory" data-category="rosas" class="group cursor-pointer">
+                    <div class="bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl p-6 text-center hover:shadow-lg transition-all transform hover:scale-105">
+                        <i class="fas fa-rose text-4xl text-primary mb-4"></i>
+                        <h3 class="font-semibold text-gray-900">Rosas</h3>
+                        <p class="text-sm text-gray-600 mt-1">12 productos</p>
+                    </div>
+                </div>
+
+                <div data-event="click:selectCategory" data-category="ramos" class="group cursor-pointer">
+                    <div class="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-6 text-center hover:shadow-lg transition-all transform hover:scale-105">
+                        <i class="fas fa-leaf text-4xl text-secondary mb-4"></i>
+                        <h3 class="font-semibold text-gray-900">Ramos</h3>
+                        <p class="text-sm text-gray-600 mt-1">18 productos</p>
+                    </div>
+                </div>
+
+                <div data-event="click:selectCategory" data-category="arreglos" class="group cursor-pointer">
+                    <div class="bg-gradient-to-br from-yellow-100 to-orange-200 rounded-xl p-6 text-center hover:shadow-lg transition-all transform hover:scale-105">
+                        <i class="fas fa-seedling text-4xl text-accent mb-4"></i>
+                        <h3 class="font-semibold text-gray-900">Arreglos</h3>
+                        <p class="text-sm text-gray-600 mt-1">15 productos</p>
+                    </div>
+                </div>
+
+                <div data-event="click:selectCategory" data-category="ocasiones" class="group cursor-pointer">
+                    <div class="bg-gradient-to-br from-purple-100 to-pink-200 rounded-xl p-6 text-center hover:shadow-lg transition-all transform hover:scale-105">
+                        <i class="fas fa-gift text-4xl text-purple-600 mb-4"></i>
+                        <h3 class="font-semibold text-gray-900">Ocasiones</h3>
+                        <p class="text-sm text-gray-600 mt-1">24 productos</p>
+                    </div>
+                </div>
+                <!-- @END_MAP )) -->
+            </div>
+
+            <!-- Products Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- @MAP: products.map(product => ( -->
+                <div data-event="click:openProductModal" data-product-id="1" class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer">
+                    <!-- A beautiful red rose bouquet with elegant wrapping -->
+                    <img src="https://images.unsplash.com/photo-1563241527-3004b7be0ffd?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" alt="Ramo de Rosas Rojas Premium" class="w-full h-48 object-cover rounded-t-xl">
+                    <div class="p-4">
+                        <h3 data-bind="product.name" class="font-semibold text-gray-900 mb-1">Ramo de Rosas Rojas Premium</h3>
+                        <div class="flex items-center mb-2">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                            </div>
+                            <span class="text-sm text-gray-600 ml-1">(24)</span>
+                        </div>
+                        <p data-bind="product.price" class="text-primary font-bold text-lg">$45.000</p>
+                    </div>
+                </div>
+
+                <div data-event="click:openProductModal" data-product-id="2" class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer">
+                    <!-- A mixed flower bouquet with roses, lilies and baby's breath -->
+                    <img src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" alt="Ramo Mixto Primaveral" class="w-full h-48 object-cover rounded-t-xl">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-gray-900 mb-1">Ramo Mixto Primaveral</h3>
+                        <div class="flex items-center mb-2">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="far fa-star text-sm"></i>
+                            </div>
+                            <span class="text-sm text-gray-600 ml-1">(18)</span>
+                        </div>
+                        <p class="text-primary font-bold text-lg">$38.000</p>
+                    </div>
+                </div>
+
+                <div data-event="click:openProductModal" data-product-id="3" class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer">
+                    <!-- An elegant white lily arrangement in a glass vase -->
+                    <img src="https://images.unsplash.com/photo-1487700160041-babef9c3cb55?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" alt="Arreglo de Lirios Blancos" class="w-full h-48 object-cover rounded-t-xl">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-gray-900 mb-1">Arreglo de Lirios Blancos</h3>
+                        <div class="flex items-center mb-2">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                            </div>
+                            <span class="text-sm text-gray-600 ml-1">(31)</span>
+                        </div>
+                        <p class="text-primary font-bold text-lg">$52.000</p>
+                    </div>
+                </div>
+
+                <div data-event="click:openProductModal" data-product-id="4" class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer">
+                    <!-- A vibrant sunflower bouquet wrapped in kraft paper -->
+                    <img src="https://images.unsplash.com/photo-1574684891174-df6b02ab38d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" alt="Ramo de Girasoles Alegres" class="w-full h-48 object-cover rounded-t-xl">
+                    <div class="p-4">
+                        <h3 class="font-semibold text-gray-900 mb-1">Ramo de Girasoles Alegres</h3>
+                        <div class="flex items-center mb-2">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="fas fa-star text-sm"></i>
+                                <i class="far fa-star text-sm"></i>
+                            </div>
+                            <span class="text-sm text-gray-600 ml-1">(15)</span>
+                        </div>
+                        <p class="text-primary font-bold text-lg">$42.000</p>
+                    </div>
+                </div>
+                <!-- @END_MAP )) -->
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: CategoriesSection -->
+
+    <!-- About Section -->
+    <!-- @COMPONENT: AboutSection [business information, hours, location] -->
+    <section id="nosotros" class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h2 class="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-6">Sobre FloraVista</h2>
+                    <p class="text-lg text-gray-600 mb-6">Con más de 15 años de experiencia, somos especialistas en crear momentos únicos con flores frescas y arreglos personalizados. Nuestra pasión es conectar emociones a través de la belleza natural.</p>
+                    
+                    <div class="space-y-4 mb-8">
+                        <div class="flex items-center">
+                            <i class="fas fa-clock text-primary mr-3"></i>
+                            <div>
+                                <p class="font-semibold">Horario de Atención</p>
+                                <p class="text-gray-600">Lunes - Sábado: 8:00 AM - 7:00 PM</p>
+                                <p class="text-gray-600">Domingo: 9:00 AM - 5:00 PM</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <i class="fas fa-map-marker-alt text-primary mr-3"></i>
+                            <div>
+                                <p class="font-semibold">Ubicación</p>
+                                <p class="text-gray-600">Calle 123 #45-67, Centro Comercial Plaza</p>
+                                <p class="text-gray-600">Medellín, Colombia</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-4">
+                        <a href="https://wa.me/573001234567" target="_blank" class="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full transition-colors">
+                            <i class="fab fa-whatsapp text-xl"></i>
+                        </a>
+                        <a href="https://facebook.com/floravista" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-colors">
+                            <i class="fab fa-facebook text-xl"></i>
+                        </a>
+                        <a href="https://instagram.com/floravista" target="_blank" class="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-full transition-colors">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- A florist arranging beautiful flowers in a bright workshop -->
+                    <img src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" alt="Florista trabajando en taller" class="rounded-xl shadow-lg">
+                    <!-- A close-up of fresh flower stems being arranged -->
+                    <img src="https://pixabay.com/get/g693185e2a8793b973fc6ca2c9a95d7ea8fece21bb0481a2da5511119247383478f8f03b3cf881e46df46556289ffd01c54050ea4cfbe08da6d2f5dffb8a89675_1280.jpg" alt="Flores frescas siendo preparadas" class="rounded-xl shadow-lg mt-8">
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: AboutSection -->
+
+    <!-- Contact Section -->
+    <!-- @COMPONENT: ContactSection [contact form and map] -->
+    <section id="contacto" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-4">Contáctanos</h2>
+                <p class="text-lg text-gray-600">¿Tienes alguna pregunta? Estamos aquí para ayudarte</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-12">
+                <div>
+                    <form class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
+                            <input type="text" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Tu nombre completo">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="tu@email.com">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Mensaje</label>
+                            <textarea rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="¿En qué podemos ayudarte?"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-primary hover:bg-pink-600 text-white py-3 rounded-lg font-medium transition-colors">
+                            Enviar Mensaje
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="bg-gray-50 p-6 rounded-xl">
+                        <h3 class="font-semibold text-gray-900 mb-4">Información de Contacto</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center">
+                                <i class="fas fa-phone text-primary mr-3"></i>
+                                <span>+57 300 123 4567</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-envelope text-primary mr-3"></i>
+                                <span>info@floravista.com</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-map-marker-alt text-primary mr-3"></i>
+                                <span>Calle 123 #45-67, Medellín</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Placeholder for Google Maps -->
+                    <div class="bg-gray-200 h-64 rounded-xl flex items-center justify-center">
+                        <p class="text-gray-500">
+                            <i class="fas fa-map text-2xl mb-2"></i><br>
+                            Mapa de Ubicación
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: ContactSection -->
+
+    <!-- Product Modal -->
+    <!-- @COMPONENT: ProductModal [detailed product view with add to cart] -->
+    <!-- @STATE: isProductModalOpen:boolean = false -->
+    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="relative">
+                <button data-event="click:closeProductModal" class="absolute top-4 right-4 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 transition-colors">
+                    <i class="fas fa-times text-gray-600"></i>
+                </button>
+                
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="p-6">
+                        <!-- A detailed view of premium red roses bouquet with elegant wrapping -->
+                        <img src="https://images.unsplash.com/photo-1563241527-3004b7be0ffd?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600" alt="Ramo de Rosas Rojas Premium - Vista Detallada" class="w-full h-96 object-cover rounded-xl">
+                        
+                        <div class="grid grid-cols-4 gap-2 mt-4">
+                            <!-- Additional product images thumbnails -->
+                            <img src="https://images.unsplash.com/photo-1563241527-3004b7be0ffd?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" alt="Vista 1" class="w-full h-16 object-cover rounded cursor-pointer border-2 border-primary">
+                            <img src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" alt="Vista 2" class="w-full h-16 object-cover rounded cursor-pointer border border-gray-300">
+                            <img src="https://images.unsplash.com/photo-1487700160041-babef9c3cb55?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" alt="Vista 3" class="w-full h-16 object-cover rounded cursor-pointer border border-gray-300">
+                            <img src="https://images.unsplash.com/photo-1574684891174-df6b02ab38d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150" alt="Vista 4" class="w-full h-16 object-cover rounded cursor-pointer border border-gray-300">
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <h2 data-bind="selectedProduct.name" class="text-2xl font-serif font-bold text-gray-900 mb-2">Ramo de Rosas Rojas Premium</h2>
+                        
+                        <div class="flex items-center mb-4">
+                            <div class="flex text-yellow-400">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <span class="text-gray-600 ml-2">(24 reseñas)</span>
+                        </div>
+                        
+                        <p data-bind="selectedProduct.price" class="text-3xl font-bold text-primary mb-4">$45.000</p>
+                        
+                        <p class="text-gray-600 mb-6">Hermoso ramo de 12 rosas rojas premium, perfectamente seleccionadas y envueltas con papel elegante. Ideal para expresar amor y pasión en ocasiones especiales.</p>
+                        
+                        <div class="space-y-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
+                                <div class="flex items-center space-x-3">
+                                    <button data-event="click:decreaseQuantity" class="w-10 h-10 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors">
+                                        <i class="fas fa-minus text-sm"></i>
+                                    </button>
+                                    <span data-bind="selectedQuantity" class="text-xl font-semibold w-12 text-center">1</span>
+                                    <button data-event="click:increaseQuantity" class="w-10 h-10 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors">
+                                        <i class="fas fa-plus text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Calificación</label>
+                                <div class="flex space-x-1">
+                                    <i data-event="click:rateProduct" data-rating="1" class="fas fa-star text-2xl text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors"></i>
+                                    <i data-event="click:rateProduct" data-rating="2" class="fas fa-star text-2xl text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors"></i>
+                                    <i data-event="click:rateProduct" data-rating="3" class="fas fa-star text-2xl text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors"></i>
+                                    <i data-event="click:rateProduct" data-rating="4" class="fas fa-star text-2xl text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors"></i>
+                                    <i data-event="click:rateProduct" data-rating="5" class="fas fa-star text-2xl text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <button data-event="click:addToCart" class="w-full bg-primary hover:bg-pink-600 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center">
+                                <i class="fas fa-shopping-cart mr-2"></i>
+                                Agregar al Carrito
+                            </button>
+                            
+                            <button data-event="click:orderWhatsApp" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center">
+                                <i class="fab fa-whatsapp mr-2"></i>
+                                Pedir por WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: ProductModal -->
+
+    <!-- Shopping Cart Sidebar -->
+    <!-- @COMPONENT: CartSidebar [shopping cart with items and checkout] -->
+    <!-- @STATE: isCartOpen:boolean = false -->
+    <div id="cartSidebar" class="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300">
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h2 class="text-xl font-serif font-bold">Carrito de Compras</h2>
+                <button data-event="click:closeCart" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <i class="fas fa-times text-gray-600"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- @MAP: cartItems.map(item => ( -->
+                <div class="flex items-center space-x-4 mb-6 pb-6 border-b">
+                    <!-- A small thumbnail of red roses bouquet -->
+                    <img src="https://images.unsplash.com/photo-1563241527-3004b7be0ffd?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100" alt="Ramo de Rosas Rojas" class="w-16 h-16 object-cover rounded-lg">
+                    <div class="flex-1">
+                        <h3 data-bind="item.name" class="font-medium text-gray-900">Ramo de Rosas Rojas Premium</h3>
+                        <p data-bind="item.price" class="text-primary font-semibold">$45.000</p>
+                        <div class="flex items-center space-x-2 mt-2">
+                            <button data-event="click:decreaseCartItem" data-item-id="1" class="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            <span data-bind="item.quantity" class="font-medium">1</span>
+                            <button data-event="click:increaseCartItem" data-item-id="1" class="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button data-event="click:removeCartItem" data-item-id="1" class="text-red-500 hover:text-red-700 transition-colors">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-4 mb-6 pb-6 border-b">
+                    <!-- A small thumbnail of mixed spring bouquet -->
+                    <img src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100" alt="Ramo Mixto Primaveral" class="w-16 h-16 object-cover rounded-lg">
+                    <div class="flex-1">
+                        <h3 class="font-medium text-gray-900">Ramo Mixto Primaveral</h3>
+                        <p class="text-primary font-semibold">$38.000</p>
+                        <div class="flex items-center space-x-2 mt-2">
+                            <button data-event="click:decreaseCartItem" data-item-id="2" class="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            <span class="font-medium">2</span>
+                            <button data-event="click:increaseCartItem" data-item-id="2" class="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button data-event="click:removeCartItem" data-item-id="2" class="text-red-500 hover:text-red-700 transition-colors">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <!-- @END_MAP )) -->
+
+                <!-- Coupon Section -->
+                <div class="mb-6">
+                    <div class="flex space-x-2">
+                        <input type="text" data-bind="couponCode" placeholder="Código de cupón" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <button data-event="click:applyCoupon" class="bg-secondary hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            Aplicar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="space-y-2 mb-6">
+                    <div class="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span data-bind="cart.subtotal">$121.000</span>
+                    </div>
+                    <div class="flex justify-between text-green-600">
+                        <span>Descuento:</span>
+                        <span data-bind="cart.discount">-$10.000</span>
+                    </div>
+                    <div class="flex justify-between font-bold text-lg border-t pt-2">
+                        <span>Total:</span>
+                        <span data-bind="cart.total">$111.000</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 border-t">
+                <button data-event="click:proceedToCheckout" class="w-full bg-primary hover:bg-pink-600 text-white py-3 rounded-lg font-medium transition-colors">
+                    Proceder al Checkout
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: CartSidebar -->
+
+    <!-- Checkout Modal -->
+    <!-- @COMPONENT: CheckoutModal [delivery options and customer forms] -->
+    <!-- @STATE: isCheckoutOpen:boolean = false -->
+    <div id="checkoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-serif font-bold">Finalizar Pedido</h2>
+                    <button data-event="click:closeCheckout" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                        <i class="fas fa-times text-gray-600"></i>
+                    </button>
+                </div>
+
+                <!-- Delivery Options -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4">Opciones de Entrega</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="relative">
+                            <input type="radio" name="delivery" value="pickup" data-bind="deliveryMethod" class="sr-only">
+                            <div data-event="click:selectDeliveryMethod" data-method="pickup" class="border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-primary transition-colors">
+                                <div class="text-center">
+                                    <i class="fas fa-store text-2xl text-primary mb-2"></i>
+                                    <p class="font-medium">Recoger en Tienda</p>
+                                    <p class="text-sm text-gray-600">Gratis</p>
+                                </div>
+                            </div>
+                        </label>
+                        
+                        <label class="relative">
+                            <input type="radio" name="delivery" value="delivery" data-bind="deliveryMethod" class="sr-only">
+                            <div data-event="click:selectDeliveryMethod" data-method="delivery" class="border-2 border-primary rounded-lg p-4 cursor-pointer bg-pink-50">
+                                <div class="text-center">
+                                    <i class="fas fa-truck text-2xl text-primary mb-2"></i>
+                                    <p class="font-medium">Delivery</p>
+                                    <p class="text-sm text-gray-600">$8.000</p>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Customer Information Form -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4">Información del Cliente</h3>
+                    
+                    <!-- Common fields for both pickup and delivery -->
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nombres</label>
+                                <input type="text" data-bind="customer.firstName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Nombres">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Apellidos</label>
+                                <input type="text" data-bind="customer.lastName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Apellidos">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Celular / WhatsApp</label>
+                            <input type="tel" data-bind="customer.phone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="+57 300 123 4567">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Identificación / DNI</label>
+                            <input type="text" data-bind="customer.id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Número de documento">
+                        </div>
+                    </div>
+
+                    <!-- Delivery-specific fields (shown when delivery is selected) -->
+                    <div id="deliveryFields" class="space-y-4 mt-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Dirección</label>
+                            <input type="text" data-bind="customer.address" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Dirección completa">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Ciudad</label>
+                            <input type="text" data-bind="customer.city" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Ciudad">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Referencia</label>
+                            <textarea data-bind="customer.reference" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Punto de referencia para facilitar la entrega"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="mb-8 bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Resumen del Pedido</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Subtotal:</span>
+                            <span data-bind="checkout.subtotal">$111.000</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Envío:</span>
+                            <span data-bind="checkout.shipping">$8.000</span>
+                        </div>
+                        <div class="flex justify-between font-bold text-lg border-t pt-2">
+                            <span>Total a Pagar:</span>
+                            <span data-bind="checkout.total">$119.000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comments -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Comentarios al Vendedor</label>
+                    <textarea data-bind="order.comments" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Instrucciones especiales, dedicatoria, etc."></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <button data-event="click:sendWhatsAppOrder" class="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg font-medium text-lg transition-colors flex items-center justify-center">
+                    <i class="fab fa-whatsapp mr-3 text-xl"></i>
+                    Enviar Pedido por WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: CheckoutModal -->
+
+    <!-- AI Virtual Assistant -->
+    <!-- @COMPONENT: AIAssistant [floating chat widget] -->
+    <!-- @STATE: isChatOpen:boolean = false -->
+    <div class="fixed bottom-6 right-6 z-40">
+        <div id="chatWidget" class="bg-white rounded-2xl shadow-2xl w-80 h-96 hidden flex-col">
+            <div class="bg-primary text-white p-4 rounded-t-2xl">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-robot text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold">Asistente FloraVista</h3>
+                            <p class="text-xs opacity-90">En línea</p>
+                        </div>
+                    </div>
+                    <button data-event="click:closeChatWidget" class="hover:bg-white hover:bg-opacity-20 p-1 rounded">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-1 p-4 overflow-y-auto bg-gray-50">
+                <div class="space-y-3">
+                    <div class="bg-white p-3 rounded-lg shadow-sm">
+                        <p class="text-sm">¡Hola! Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?</p>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <button data-event="click:quickQuestion" data-question="productos" class="bg-primary text-white px-3 py-1 rounded-full text-xs hover:bg-pink-600 transition-colors">
+                            Ver productos
+                        </button>
+                        <button data-event="click:quickQuestion" data-question="horarios" class="bg-primary text-white px-3 py-1 rounded-full text-xs hover:bg-pink-600 transition-colors">
+                            Horarios
+                        </button>
+                        <button data-event="click:quickQuestion" data-question="envios" class="bg-primary text-white px-3 py-1 rounded-full text-xs hover:bg-pink-600 transition-colors">
+                            Envíos
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t">
+                <div class="flex space-x-2">
+                    <input type="text" data-bind="chatMessage" placeholder="Escribe tu mensaje..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
+                    <button data-event="click:sendChatMessage" class="bg-primary hover:bg-pink-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-paper-plane text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <button data-event="click:toggleChatWidget" class="bg-primary hover:bg-pink-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-110">
+            <i class="fas fa-comments text-xl"></i>
+        </button>
+    </div>
+    <!-- @END_COMPONENT: AIAssistant -->
+
+    <!-- Footer -->
+    <!-- @COMPONENT: Footer [site footer with links and information] -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-xl font-serif font-bold mb-4">FloraVista</h3>
+                    <p class="text-gray-400 mb-4">Tu floristería de confianza para momentos especiales. Flores frescas y arreglos únicos desde el corazón.</p>
+                    <div class="flex space-x-3">
+                        <a href="https://wa.me/573001234567" target="_blank" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-whatsapp text-xl"></i>
+                        </a>
+                        <a href="https://facebook.com/floravista" target="_blank" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-facebook text-xl"></i>
+                        </a>
+                        <a href="https://instagram.com/floravista" target="_blank" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Productos</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Rosas</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Ramos</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Arreglos</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Ocasiones Especiales</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Información</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Sobre Nosotros</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Envíos</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Términos y Condiciones</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Política de Privacidad</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Contacto</h4>
+                    <div class="space-y-2 text-gray-400">
+                        <p class="flex items-center">
+                            <i class="fas fa-phone mr-2"></i>
+                            +57 300 123 4567
+                        </p>
+                        <p class="flex items-center">
+                            <i class="fas fa-envelope mr-2"></i>
+                            info@floravista.com
+                        </p>
+                        <p class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-2"></i>
+                            Calle 123 #45-67, Medellín
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 FloraVista. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+    <!-- @END_COMPONENT: Footer -->
+
+    <script>
+        // TODO: Implement business logic, API calls, or state management
+        
+        (function() {
+            'use strict';
+            
+            // UI State Management
+            let state = {
+                cartItems: [],
+                isCartOpen: false,
+                isProductModalOpen: false,
+                isCheckoutOpen: false,
+                isChatOpen: false,
+                selectedProduct: null,
+                deliveryMethod: 'delivery'
+            };
+
+            // UI Element References
+            const elements = {
+                productModal: document.getElementById('productModal'),
+                cartSidebar: document.getElementById('cartSidebar'),
+                checkoutModal: document.getElementById('checkoutModal'),
+                chatWidget: document.getElementById('chatWidget'),
+                deliveryFields: document.getElementById('deliveryFields')
+            };
+
+            // Modal and Sidebar Controls
+            function openProductModal(productId) {
+                state.isProductModalOpen = true;
+                elements.productModal.classList.remove('hidden');
+                elements.productModal.classList.add('flex');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeProductModal() {
+                state.isProductModalOpen = false;
+                elements.productModal.classList.add('hidden');
+                elements.productModal.classList.remove('flex');
+                document.body.style.overflow = '';
+            }
+
+            function toggleCart() {
+                state.isCartOpen = !state.isCartOpen;
+                if (state.isCartOpen) {
+                    elements.cartSidebar.classList.remove('translate-x-full');
+                } else {
+                    elements.cartSidebar.classList.add('translate-x-full');
+                }
+            }
+
+            function openCheckout() {
+                state.isCheckoutOpen = true;
+                elements.checkoutModal.classList.remove('hidden');
+                elements.checkoutModal.classList.add('flex');
+                toggleCart(); // Close cart
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeCheckout() {
+                state.isCheckoutOpen = false;
+                elements.checkoutModal.classList.add('hidden');
+                elements.checkoutModal.classList.remove('flex');
+                document.body.style.overflow = '';
+            }
+
+            function toggleChatWidget() {
+                state.isChatOpen = !state.isChatOpen;
+                if (state.isChatOpen) {
+                    elements.chatWidget.classList.remove('hidden');
+                    elements.chatWidget.classList.add('flex');
+                } else {
+                    elements.chatWidget.classList.add('hidden');
+                    elements.chatWidget.classList.remove('flex');
+                }
+            }
+
+            // Delivery Method Selection
+            function selectDeliveryMethod(method) {
+                state.deliveryMethod = method;
+                
+                // Update UI to show selected method
+                const pickupOption = document.querySelector('[data-method="pickup"]');
+                const deliveryOption = document.querySelector('[data-method="delivery"]');
+                
+                if (method === 'pickup') {
+                    pickupOption.classList.add('border-primary', 'bg-pink-50');
+                    deliveryOption.classList.remove('border-primary', 'bg-pink-50');
+                    deliveryOption.classList.add('border-gray-300');
+                    elements.deliveryFields.style.display = 'none';
+                } else {
+                    deliveryOption.classList.add('border-primary', 'bg-pink-50');
+                    pickupOption.classList.remove('border-primary', 'bg-pink-50');
+                    pickupOption.classList.add('border-gray-300');
+                    elements.deliveryFields.style.display = 'block';
+                }
+            }
+
+            // WhatsApp Integration
+            function sendWhatsAppOrder() {
+                // TODO: Collect all form data and create WhatsApp message
+                const orderData = {
+                    items: state.cartItems,
+                    customer: {
+                        name: document.querySelector('[data-bind="customer.firstName"]')?.value,
+                        lastName: document.querySelector('[data-bind="customer.lastName"]')?.value,
+                        phone: document.querySelector('[data-bind="customer.phone"]')?.value,
+                        id: document.querySelector('[data-bind="customer.id"]')?.value,
+                        address: document.querySelector('[data-bind="customer.address"]')?.value,
+                        city: document.querySelector('[data-bind="customer.city"]')?.value,
+                        reference: document.querySelector('[data-bind="customer.reference"]')?.value
+                    },
+                    deliveryMethod: state.deliveryMethod,
+                    comments: document.querySelector('[data-bind="order.comments"]')?.value,
+                    total: '$119.000'
+                };
+
+                // Format WhatsApp message
+                let message = `🌸 *NUEVO PEDIDO - FloraVista* 🌸\n\n`;
+                message += `👤 *Cliente:* ${orderData.customer.name} ${orderData.customer.lastName}\n`;
+                message += `📱 *Teléfono:* ${orderData.customer.phone}\n`;
+                message += `🆔 *Documento:* ${orderData.customer.id}\n\n`;
+                
+                if (state.deliveryMethod === 'delivery') {
+                    message += `🚚 *Entrega:* Delivery\n`;
+                    message += `📍 *Dirección:* ${orderData.customer.address}\n`;
+                    message += `🏙️ *Ciudad:* ${orderData.customer.city}\n`;
+                    message += `📝 *Referencia:* ${orderData.customer.reference}\n\n`;
+                } else {
+                    message += `🏪 *Entrega:* Recoger en tienda\n\n`;
+                }
+
+                message += `🛒 *Productos:*\n`;
+                // Add products here
+                message += `💰 *Total:* ${orderData.total}\n\n`;
+                
+                if (orderData.comments) {
+                    message += `💬 *Comentarios:* ${orderData.comments}\n\n`;
+                }
+                
+                message += `Gracias por confiar en FloraVista 🌹`;
+
+                // Open WhatsApp with formatted message
+                const whatsappUrl = `https://wa.me/573001234567?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            }
+
+            // Event Listeners
+            document.addEventListener('click', function(e) {
+                const target = e.target.closest('[data-event]');
+                if (!target) return;
+
+                const event = target.dataset.event;
+                const action = event.split(':')[1];
+
+                switch(action) {
+                    case 'openProductModal':
+                        openProductModal(target.dataset.productId);
+                        break;
+                    case 'closeProductModal':
+                        closeProductModal();
+                        break;
+                    case 'toggleCart':
+                        toggleCart();
+                        break;
+                    case 'closeCart':
+                        toggleCart();
+                        break;
+                    case 'proceedToCheckout':
+                        openCheckout();
+                        break;
+                    case 'closeCheckout':
+                        closeCheckout();
+                        break;
+                    case 'toggleChatWidget':
+                        toggleChatWidget();
+                        break;
+                    case 'closeChatWidget':
+                        toggleChatWidget();
+                        break;
+                    case 'selectDeliveryMethod':
+                        selectDeliveryMethod(target.dataset.method);
+                        break;
+                    case 'sendWhatsAppOrder':
+                        sendWhatsAppOrder();
+                        break;
+                    case 'orderWhatsApp':
+                        // Quick WhatsApp order for single product
+                        const productName = document.querySelector('[data-bind="selectedProduct.name"]')?.textContent;
+                        const productPrice = document.querySelector('[data-bind="selectedProduct.price"]')?.textContent;
+                        const message = `Hola! Estoy interesado en: ${productName} - ${productPrice}`;
+                        window.open(`https://wa.me/573001234567?text=${encodeURIComponent(message)}`, '_blank');
+                        break;
+                }
+            });
+
+            // Smooth scrolling for navigation
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+
+            // Initialize delivery method on page load
+            selectDeliveryMethod('delivery');
+            
+        })();
+    </script>
+</body>
+</html>
