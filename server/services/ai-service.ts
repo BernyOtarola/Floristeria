@@ -1,9 +1,10 @@
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY 
-});
+// Temporalmente deshabilitado - descomentar cuando tengas OpenAI configurado
+// const openai = new OpenAI({ 
+//   apiKey: process.env.OPENAI_API_KEY 
+// });
 
 interface ChatMessage {
   message: string;
@@ -13,50 +14,36 @@ interface ChatMessage {
 }
 
 export async function processAIMessage(message: ChatMessage): Promise<string> {
+  // Respuestas simuladas hasta que OpenAI esté configurado
+  console.log('🤖 Procesando mensaje (modo simulado):', message.message);
+  
   try {
-    const systemPrompt = `Eres un asistente virtual especializado en FloraVista, una floristería premium colombiana.
+    // Respuestas predefinidas para simular el asistente
+    const quickResponses: { [key: string]: string } = {
+      'hola': '¡Hola! Bienvenido a FloraVista. Soy tu asistente virtual. ¿En qué puedo ayudarte?',
+      'productos': 'Tenemos 4 categorías principales: Rosas (12 productos), Ramos (18 productos), Arreglos (15 productos) y Ocasiones especiales (24 productos).',
+      'horarios': 'Nuestros horarios son: Lunes a Sábado de 8:00 AM a 7:00 PM, y Domingos de 9:00 AM a 5:00 PM.',
+      'ubicacion': 'Estamos ubicados en Calle 123 #45-67, Centro Comercial Plaza, Medellín, Colombia.',
+      'envios': 'Ofrecemos delivery por $8.000 COP o recogida gratuita en tienda.',
+      'contacto': 'Puedes contactarnos por WhatsApp al +57 300 123 4567.',
+      'precios': 'Nuestros precios van desde $38.000 hasta $65.000 COP dependiendo del arreglo.',
+      'cupones': 'Tenemos cupones disponibles: FLORES10 (10%), PRIMAVERA15 (15%), AMOR20 (20%).'
+    };
 
-INFORMACIÓN DE LA EMPRESA:
-- Nombre: FloraVista
-- Ubicación: Calle 123 #45-67, Centro Comercial Plaza, Medellín, Colombia
-- Teléfono: +57 300 123 4567
-- Email: info@floravista.com
-- Horarios: Lunes-Sábado 8:00 AM - 7:00 PM, Domingo 9:00 AM - 5:00 PM
-
-PRODUCTOS:
-- 4 categorías principales: Rosas, Ramos, Arreglos, Ocasiones Especiales
-- Precios en pesos colombianos (COP)
-- Flores frescas de alta calidad
-- Arreglos personalizados
-
-SERVICIOS:
-- Delivery por $8.000 COP
-- Recogida gratuita en tienda
-- WhatsApp: +57 300 123 4567
-- Pedidos por WhatsApp disponibles
-
-PERSONALIDAD:
-- Amable y profesional
-- Conocedor de flores y arreglos
-- Enfocado en ayudar al cliente
-- Respuestas en español colombiano
-- Conciso pero informativo
-
-Responde siempre como si fueras parte del equipo de FloraVista, con conocimiento profundo sobre flores y un enfoque en brindar excelente servicio al cliente.`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message.message }
-      ],
-      max_tokens: 200,
-      temperature: 0.7,
-    });
-
-    return response.choices[0].message.content || "Lo siento, no pude procesar tu mensaje. ¿Puedes intentar de nuevo?";
+    const userMessage = message.message.toLowerCase();
+    
+    // Buscar respuesta que coincida
+    for (const [key, response] of Object.entries(quickResponses)) {
+      if (userMessage.includes(key)) {
+        return `${response} (Nota: Asistente en modo demo - OpenAI no configurado)`;
+      }
+    }
+    
+    // Respuesta por defecto
+    return `Gracias por tu mensaje: "${message.message}". Soy el asistente de FloristeriaValeska en modo demo. Las funciones completas de IA estarán disponibles cuando se configure OpenAI. ¿Puedo ayudarte con información sobre productos, horarios, ubicación o envíos?`;
+    
   } catch (error) {
-    console.error("Error processing AI message:", error);
-    return "Lo siento, estoy experimentando dificultades técnicas en este momento. Por favor, contacta directamente a nuestro equipo al +57 300 123 4567 para asistencia inmediata.";
+    console.error("Error en asistente simulado:", error);
+    return "Disculpa, hay un problema técnico. Por favor contacta directamente al +506 84630055.";
   }
 }

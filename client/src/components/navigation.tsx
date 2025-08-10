@@ -1,4 +1,5 @@
 import { ShoppingCart, Menu } from "lucide-react";
+import { FLORISTERIA_CONFIG } from "@shared/config";
 
 interface NavigationProps {
   cartItemCount: number;
@@ -18,8 +19,12 @@ export default function Navigation({ cartItemCount, onToggleCart }: NavigationPr
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <h1 className="text-2xl font-serif font-bold text-primary">FloraVista</h1>
-            <span className="ml-2 text-sm text-gray-600">Floristería Premium</span>
+            <h1 className="text-2xl font-serif font-bold text-primary">
+              {FLORISTERIA_CONFIG.name}
+            </h1>
+            <span className="ml-2 text-sm text-gray-600">
+              {FLORISTERIA_CONFIG.slogan}
+            </span>
           </div>
           
           <div className="hidden md:flex space-x-8">
