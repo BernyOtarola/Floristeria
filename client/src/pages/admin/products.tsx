@@ -30,6 +30,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -40,7 +51,12 @@ import {
   Package,
   Eye,
   Star,
-  DollarSign,
+  Filter,
+  Download,
+  Upload,
+  Image as ImageIcon,
+  Save,
+  X,
 } from "lucide-react";
 import AdminLayout from "@/components/admin-layout";
 import { FLORISTERIA_CONFIG } from "@shared/config";
@@ -57,6 +73,8 @@ interface ProductFormData {
 
 export default function AdminProducts() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -68,6 +86,7 @@ export default function AdminProducts() {
     categoryId: "",
     inStock: true,
   });
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -84,7 +103,7 @@ export default function AdminProducts() {
 
   // Create product mutation
   const createProductMutation = useMutation({
-    mutationFn: async (productData: Omit<ProductFormData, 'inStock'> & { inStock: boolean }) => {
+    mutationFn: async (productData: ProductFormData) => {
       const response = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,17 +115,18 @@ export default function AdminProducts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
       setIsCreateDialogOpen(false);
       resetForm();
       toast({
-        title: "Producto creado",
-        description: "El producto ha sido creado exitosamente.",
+        title: "✅ Producto creado",
+        description: "El producto ha sido agregado exitosamente al catálogo.",
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "No se pudo crear el producto.",
+        title: "❌ Error",
+        description: "No se pudo crear el producto. Verifica los datos.",
         variant: "destructive",
       });
     },
@@ -114,7 +134,7 @@ export default function AdminProducts() {
 
   // Update product mutation
   const updateProductMutation = useMutation({
-    mutationFn: async ({ id, ...productData }: { id: string } & Partial<ProductFormData>) => {
+    mutationFn: async ({ id, ...productData }: { id: string } & ProductFormData) => {
       const response = await fetch(`/api/admin/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -130,13 +150,13 @@ export default function AdminProducts() {
       setEditingProduct(null);
       resetForm();
       toast({
-        title: "Producto actualizado",
-        description: "El producto ha sido actualizado exitosamente.",
+        title: "✅ Producto actualizado",
+        description: "Los cambios han sido guardados correctamente.",
       });
     },
     onError: () => {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "No se pudo actualizar el producto.",
         variant: "destructive",
       });
@@ -154,14 +174,15 @@ export default function AdminProducts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
       toast({
-        title: "Producto eliminado",
-        description: "El producto ha sido eliminado exitosamente.",
+        title: "✅ Producto eliminado",
+        description: "El producto ha sido eliminado del catálogo.",
       });
     },
     onError: () => {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "No se pudo eliminar el producto.",
         variant: "destructive",
       });
@@ -186,17 +207,23 @@ export default function AdminProducts() {
       categoryId: "",
       inStock: true,
     });
+    setImagePreview("");
   };
 
   const handleInputChange = (field: keyof ProductFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Update image preview
+    if (field === "image" && typeof value === "string") {
+      setImagePreview(value);
+    }
   };
 
   const handleCreateProduct = () => {
     if (!formData.name || !formData.price || !formData.categoryId) {
       toast({
-        title: "Campos requeridos",
-        description: "Por favor completa todos los campos obligatorios.",
+        title: "⚠️ Campos requeridos",
+        description: "Completa nombre, precio y categoría como mínimo.",
         variant: "destructive",
       });
       return;
@@ -215,6 +242,7 @@ export default function AdminProducts() {
       categoryId: product.categoryId || "",
       inStock: product.inStock ?? true,
     });
+    setImagePreview(product.image);
     setIsEditDialogOpen(true);
   };
 
@@ -228,19 +256,32 @@ export default function AdminProducts() {
   };
 
   const handleDeleteProduct = (product: Product) => {
-    if (confirm(`¿Estás seguro de que quieres eliminar "${product.name}"?`)) {
-      deleteProductMutation.mutate(product.id);
-    }
+    deleteProductMutation.mutate(product.id);
   };
 
-  const filteredProducts = products?.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  // Filter products
+  const filteredProducts = products?.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || product.categoryId === selectedCategory;
+    const matchesStock = stockFilter === "all" || 
+                        (stockFilter === "in-stock" && product.inStock) ||
+                        (stockFilter === "out-of-stock" && !product.inStock);
+    
+    return matchesSearch && matchesCategory && matchesStock;
+  }) || [];
 
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return "Sin categoría";
     return categories?.find(cat => cat.id === categoryId)?.name || "Sin categoría";
+  };
+
+  const productStats = {
+    total: products?.length || 0,
+    inStock: products?.filter(p => p.inStock).length || 0,
+    outOfStock: products?.filter(p => !p.inStock).length || 0,
+    avgPrice: products?.length ? 
+      products.reduce((sum, p) => sum + parseFloat(p.price), 0) / products.length : 0
   };
 
   const ProductDialog = ({ 
@@ -259,36 +300,50 @@ export default function AdminProducts() {
     isLoading: boolean;
   }) => (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="flex items-center">
+            <Package className="w-5 h-5 mr-2" />
+            {title}
+          </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="name">Nombre *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="Ramo de Rosas Rojas"
-            />
+        <div className="grid gap-6 py-4">
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium">
+                Nombre del Producto *
+              </Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                placeholder="Ej: Ramo de Rosas Rojas"
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="price" className="text-sm font-medium">
+                Precio ({FLORISTERIA_CONFIG.currency.symbol}) *
+              </Label>
+              <Input
+                id="price"
+                type="number"
+                value={formData.price}
+                onChange={(e) => handleInputChange("price", e.target.value)}
+                placeholder="15000"
+                className="w-full"
+              />
+            </div>
           </div>
           
-          <div className="grid gap-2">
-            <Label htmlFor="price">Precio ({FLORISTERIA_CONFIG.currency.symbol}) *</Label>
-            <Input
-              id="price"
-              type="number"
-              value={formData.price}
-              onChange={(e) => handleInputChange("price", e.target.value)}
-              placeholder="15000"
-            />
-          </div>
-          
-          <div className="grid gap-2">
-            <Label htmlFor="category">Categoría *</Label>
+          <div className="space-y-2">
+            <Label htmlFor="category" className="text-sm font-medium">
+              Categoría *
+            </Label>
             <Select value={formData.categoryId} onValueChange={(value) => handleInputChange("categoryId", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona una categoría" />
@@ -296,50 +351,116 @@ export default function AdminProducts() {
               <SelectContent>
                 {categories?.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
-                    {category.name}
+                    <div className="flex items-center">
+                      <i className={`${category.icon} mr-2`} />
+                      {category.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           
-          <div className="grid gap-2">
-            <Label htmlFor="image">URL de la Imagen</Label>
-            <Input
-              id="image"
-              value={formData.image}
-              onChange={(e) => handleInputChange("image", e.target.value)}
-              placeholder="https://images.unsplash.com/..."
-            />
+          {/* Image Section */}
+          <div className="space-y-4">
+            <Label className="text-sm font-medium">Imagen del Producto</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Input
+                  value={formData.image}
+                  onChange={(e) => handleInputChange("image", e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-..."
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500">
+                  URL de la imagen (recomendado: Unsplash, tamaño 600x600px)
+                </p>
+              </div>
+              
+              {imagePreview && (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Vista previa"
+                    className="w-full h-32 object-cover rounded-lg border"
+                    onError={() => setImagePreview("")}
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-6 w-6"
+                    onClick={() => {
+                      handleInputChange("image", "");
+                      setImagePreview("");
+                    }}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
           
-          <div className="grid gap-2">
-            <Label htmlFor="description">Descripción</Label>
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-medium">
+              Descripción
+            </Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
-              placeholder="Descripción del producto..."
-              rows={3}
+              placeholder="Describe el producto, ocasiones especiales, características..."
+              rows={4}
+              className="w-full"
             />
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
             <Switch
               id="inStock"
               checked={formData.inStock}
               onCheckedChange={(checked) => handleInputChange("inStock", checked)}
             />
-            <Label htmlFor="inStock">Disponible en stock</Label>
+            <Label htmlFor="inStock" className="text-sm font-medium">
+              Producto disponible en inventario
+            </Label>
           </div>
+          
+          {/* Preview Card */}
+          {formData.name && formData.price && (
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h4 className="font-medium mb-2">Vista Previa:</h4>
+              <div className="bg-white rounded-lg shadow-sm p-4 max-w-xs">
+                {imagePreview && (
+                  <img src={imagePreview} alt="Preview" className="w-full h-32 object-cover rounded mb-2" />
+                )}
+                <h3 className="font-semibold line-clamp-2">{formData.name}</h3>
+                <p className="text-primary font-bold text-lg">{formatPrice(formData.price || "0")}</p>
+                <Badge variant={formData.inStock ? "default" : "destructive"} className="mt-1">
+                  {formData.inStock ? "Disponible" : "Agotado"}
+                </Badge>
+              </div>
+            </div>
+          )}
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
             Cancelar
           </Button>
           <Button onClick={onSave} disabled={isLoading}>
-            {isLoading ? "Guardando..." : "Guardar"}
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Guardar Producto
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -353,75 +474,131 @@ export default function AdminProducts() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-serif font-bold text-gray-900">
-              Gestión de Productos
+              🌺 Gestión de Productos
             </h1>
             <p className="text-gray-600 mt-2">
-              Administra el catálogo de flores y arreglos de {FLORISTERIA_CONFIG.name}
+              Administra el catálogo de flores de {FLORISTERIA_CONFIG.name}
             </p>
           </div>
           
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Nuevo Producto
-              </Button>
-            </DialogTrigger>
-          </Dialog>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Exportar
+            </Button>
+            
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo Producto
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Productos</p>
+                  <p className="text-2xl font-bold">{productStats.total}</p>
+                </div>
                 <Package className="h-8 w-8 text-primary" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Productos</p>
-                  <p className="text-2xl font-bold">{products?.length || 0}</p>
-                </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">En Stock</p>
+                  <p className="text-2xl font-bold text-green-600">{productStats.inStock}</p>
+                </div>
                 <Eye className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">En Stock</p>
-                  <p className="text-2xl font-bold">
-                    {products?.filter(p => p.inStock).length || 0}
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Star className="h-8 w-8 text-yellow-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Promedio Rating</p>
-                  <p className="text-2xl font-bold">4.2</p>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Agotados</p>
+                  <p className="text-2xl font-bold text-red-600">{productStats.outOfStock}</p>
                 </div>
+                <Package className="h-8 w-8 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Precio Promedio</p>
+                  <p className="text-2xl font-bold">{formatPrice(productStats.avgPrice)}</p>
+                </div>
+                <Star className="h-8 w-8 text-yellow-600" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
+        {/* Filters */}
         <Card>
           <CardContent className="p-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar productos por nombre o descripción..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar productos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas las categorías" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {categories?.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center">
+                        <i className={`${category.icon} mr-2`} />
+                        {category.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={stockFilter} onValueChange={setStockFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Estado del stock" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los productos</SelectItem>
+                  <SelectItem value="in-stock">Solo en stock</SelectItem>
+                  <SelectItem value="out-of-stock">Solo agotados</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button variant="outline" onClick={() => {
+                setSearchTerm("");
+                setSelectedCategory("all");
+                setStockFilter("all");
+              }}>
+                <Filter className="w-4 h-4 mr-2" />
+                Limpiar Filtros
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -429,14 +606,28 @@ export default function AdminProducts() {
         {/* Products Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Lista de Productos</CardTitle>
+            <CardTitle>
+              Catálogo de Productos ({filteredProducts.length})
+            </CardTitle>
             <CardDescription>
               Gestiona todos los productos de tu catálogo
             </CardDescription>
           </CardHeader>
           <CardContent>
             {productsLoading ? (
-              <div className="text-center py-8">Cargando productos...</div>
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+                <p>Cargando productos...</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No se encontraron productos</p>
+                <Button className="mt-4" onClick={() => setIsCreateDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Primer Producto
+                </Button>
+              </div>
             ) : (
               <Table>
                 <TableHeader>
@@ -458,6 +649,9 @@ export default function AdminProducts() {
                             src={product.image}
                             alt={product.name}
                             className="w-12 h-12 rounded-lg object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = '/placeholder-flower.jpg';
+                            }}
                           />
                           <div>
                             <p className="font-medium">{product.name}</p>
@@ -495,14 +689,36 @@ export default function AdminProducts() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteProduct(product)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar producto?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Estás a punto de eliminar "{product.name}". 
+                                  Esta acción no se puede deshacer.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteProduct(product)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
