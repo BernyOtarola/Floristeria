@@ -74,14 +74,16 @@ export function generateWhatsAppMessage(
   cartItems.forEach((item, index) => {
     message += `${index + 1}. ${item.product.name}\n`;
     message += `   Cantidad: ${item.quantity}\n`;
-    message += `   Precio unit.: ${formatPrice(parseFloat(item.product.price))}\n`;
+    message += `   Precio unit.: ${formatPrice(
+      parseFloat(item.product.price)
+    )}\n`;
     message += `   Subtotal: ${formatPrice(item.price)}\n\n`;
   });
 
   // Order summary
   message += `💰 *Resumen del Pedido:*\n`;
   message += `   Subtotal: ${formatPrice(orderSummary.subtotal)}\n`;
-  
+
   if (orderSummary.discount > 0) {
     message += `   Descuento: -${formatPrice(orderSummary.discount)}`;
     if (orderDetails?.appliedCoupon) {
@@ -89,13 +91,13 @@ export function generateWhatsAppMessage(
     }
     message += `\n`;
   }
-  
+
   if (orderSummary.shipping > 0) {
     message += `   Envío: ${formatPrice(orderSummary.shipping)}\n`;
   } else if (orderDetails?.deliveryMethod === "delivery") {
     message += `   Envío: GRATIS 🎉\n`;
   }
-  
+
   message += `   *TOTAL: ${formatPrice(orderSummary.total)}*\n\n`;
 
   // Comments
@@ -105,8 +107,12 @@ export function generateWhatsAppMessage(
 
   // Delivery areas info
   if (orderDetails?.deliveryMethod === "delivery") {
-    message += `🚚 *Áreas de entrega:* ${FLORISTERIA_CONFIG.services.delivery.areas.join(", ")}\n`;
-    message += `🆓 *Envío gratis* en pedidos sobre ${formatPrice(FLORISTERIA_CONFIG.services.delivery.freeThreshold)}\n\n`;
+    message += `🚚 *Áreas de entrega:* ${FLORISTERIA_CONFIG.services.delivery.areas.join(
+      ", "
+    )}\n`;
+    message += `🆓 *Envío gratis* en pedidos sobre ${formatPrice(
+      FLORISTERIA_CONFIG.services.delivery.freeThreshold
+    )}\n\n`;
   }
 
   message += `¡Pura Vida! Gracias por confiar en ${FLORISTERIA_CONFIG.name} 🌺\n`;
@@ -118,12 +124,16 @@ export function generateWhatsAppMessage(
 }
 
 // Template para mensajes rápidos del asistente
-export function generateQuickWhatsAppMessage(productName: string, productPrice: string): string {
-  const message = `${FLORISTERIA_CONFIG.whatsapp.templates.greeting}\n\n` +
-                 `Estoy interesado/a en: *${productName}*\n` +
-                 `Precio: ${productPrice}\n\n` +
-                 `¿Podrían darme más información?\n\n` +
-                 `Gracias 🌺`;
-  
+export function generateQuickWhatsAppMessage(
+  productName: string,
+  productPrice: string
+): string {
+  const message =
+    `${FLORISTERIA_CONFIG.whatsapp.templates.greeting}\n\n` +
+    `Estoy interesado/a en: *${productName}*\n` +
+    `Precio: ${productPrice}\n\n` +
+    `¿Podrían darme más información?\n\n` +
+    `Gracias 🌺`;
+
   return message;
 }

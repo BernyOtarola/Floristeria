@@ -3,6 +3,19 @@ import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Tabla de usuarios admin
+export const adminUsers = pgTable("admin_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("admin"), // admin, super_admin
+  isActive: boolean("is_active").default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").default(sql`now()`),
+  updatedAt: timestamp("updated_at").default(sql`now()`),
+});
+
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -21,6 +34,8 @@ export const products = pgTable("products", {
   rating: decimal("rating", { precision: 2, scale: 1 }).default("0.0"),
   reviewCount: integer("review_count").default(0),
   inStock: boolean("in_stock").default(true),
+  createdAt: timestamp("created_at").default(sql`now()`),
+  updatedAt: timestamp("updated_at").default(sql`now()`),
 });
 
 export const cartItems = pgTable("cart_items", {
@@ -36,6 +51,7 @@ export const coupons = pgTable("coupons", {
   discount: decimal("discount", { precision: 5, scale: 2 }).notNull(),
   isActive: boolean("is_active").default(true),
   expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").default(sql`now()`),
 });
 
 export const orders = pgTable("orders", {
@@ -68,12 +84,21 @@ export const reviews = pgTable("reviews", {
 });
 
 // Insert schemas
+export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLogin: true,
+});
+
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertCartItemSchema = createInsertSchema(cartItems).omit({
@@ -82,6 +107,7 @@ export const insertCartItemSchema = createInsertSchema(cartItems).omit({
 
 export const insertCouponSchema = createInsertSchema(coupons).omit({
   id: true,
+  createdAt: true,
 });
 
 export const insertOrderSchema = createInsertSchema(orders).omit({
@@ -94,7 +120,14 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   createdAt: true,
 });
 
+// Login schema
+export const loginSchema = z.object({
+  username: z.string().min(1, "Usuario requerido"),
+  password: z.string().min(1, "Contraseña requerida"),
+});
+
 // Types
+export type AdminUser = typeof adminUsers.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type CartItem = typeof cartItems.$inferSelect;
@@ -102,9 +135,11 @@ export type Coupon = typeof coupons.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type LoginData = z.infer<typeof loginSchema>;
