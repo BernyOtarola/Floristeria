@@ -1,15 +1,29 @@
-import { 
-  type Category, type Product, type CartItem, type Coupon, type Order, type Review, type AdminUser,
-  type InsertCategory, type InsertProduct, type InsertCartItem, type InsertCoupon, type InsertOrder, type InsertReview, type InsertAdminUser, type LoginData
+// server/storage.ts
+import {
+  type Category,
+  type Product,
+  type CartItem,
+  type Coupon,
+  type Order,
+  type Review,
+  type AdminUser,
+  type InsertCategory,
+  type InsertProduct,
+  type InsertCartItem,
+  type InsertCoupon,
+  type InsertOrder,
+  type InsertReview,
+  type InsertAdminUser,
+  type LoginData,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
   // Admin Authentication
-  createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, 'passwordHash'>>;
-  authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, 'passwordHash'> | null>;
-  getAdminById(id: string): Promise<Omit<AdminUser, 'passwordHash'> | null>;
+  createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "passwordHash">>;
+  authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, "passwordHash"> | null>;
+  getAdminById(id: string): Promise<Omit<AdminUser, "passwordHash"> | null>;
   updateAdminLastLogin(id: string): Promise<void>;
 
   // Categories
@@ -65,6 +79,14 @@ export class MemStorage implements IStorage {
     this.initializeData();
   }
 
+  // -------- helpers null-safe --------
+  private safeTime(d: Date | string | null | undefined): number {
+    if (!d) return 0;
+    const n = d instanceof Date ? d : new Date(d);
+    const t = n.getTime();
+    return Number.isNaN(t) ? 0 : t;
+  }
+
   private async initializeData() {
     // Initialize default admin user
     const defaultAdmin: InsertAdminUser = {
@@ -72,16 +94,19 @@ export class MemStorage implements IStorage {
       email: "Fannyaleman0312@gmail.com",
       passwordHash: await bcrypt.hash("FloBribri2024!", 10),
       role: "super_admin",
-      isActive: true
+      isActive: true,
     };
 
     const adminId = randomUUID();
     const admin: AdminUser = {
+      // ⚠️ Forzamos role:string e isActive:boolean|null para que no queden como undefined
       ...defaultAdmin,
       id: adminId,
+      role: defaultAdmin.role ?? "admin",
+      isActive: defaultAdmin.isActive ?? true,
       lastLogin: null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     this.adminUsers.set(adminId, admin);
 
@@ -90,27 +115,29 @@ export class MemStorage implements IStorage {
       { name: "Rosas", icon: "fas fa-rose", color: "from-pink-100 to-pink-200", productCount: 12 },
       { name: "Ramos", icon: "fas fa-leaf", color: "from-green-100 to-green-200", productCount: 18 },
       { name: "Arreglos", icon: "fas fa-seedling", color: "from-yellow-100 to-orange-200", productCount: 15 },
-      { name: "Ocasiones", icon: "fas fa-gift", color: "from-purple-100 to-pink-200", productCount: 24 }
+      { name: "Ocasiones", icon: "fas fa-gift", color: "from-purple-100 to-pink-200", productCount: 24 },
     ];
 
-    categoriesData.forEach(category => {
+    categoriesData.forEach((category) => {
       const id = randomUUID();
-      const newCategory: Category = { 
-        ...category, 
+      const newCategory: Category = {
+        ...category,
         id,
-        productCount: category.productCount ?? 0
+        productCount: category.productCount ?? 0,
       };
       this.categories.set(id, newCategory);
     });
 
     // Initialize products
     const categoryIds = Array.from(this.categories.keys());
-    const productsData: Omit<InsertProduct, 'categoryId'>[] = [
+    const productsData: Omit<InsertProduct, "categoryId">[] = [
       {
         name: "Ramo de Rosas Rojas Premium",
         price: "15000",
-        description: "Hermoso ramo de 12 rosas rojas premium, perfectamente seleccionadas y envueltas con papel elegante. Ideal para expresar amor y pasión en ocasiones especiales.",
-        image: "https://images.unsplash.com/photo-1563241527-3004b7be0ffd?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
+        description:
+          "Hermoso ramo de 12 rosas rojas premium, perfectamente seleccionadas y envueltas con papel elegante. Ideal para expresar amor y pasión en ocasiones especiales.",
+        image:
+          "https://images.unsplash.com/photo-1563241527-3004b7be0ffd?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
         rating: "5.0",
         reviewCount: 24,
         inStock: true,
@@ -119,7 +146,8 @@ export class MemStorage implements IStorage {
         name: "Ramo Mixto Primaveral",
         price: "12000",
         description: "Encantador ramo con rosas, lirios y aliento de bebé en colores frescos de primavera.",
-        image: "https://images.unsplash.com/photo-1490750967868-88aa4486c946?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
+        image:
+          "https://images.unsplash.com/photo-1490750967868-88aa4486c946?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
         rating: "4.0",
         reviewCount: 18,
         inStock: true,
@@ -128,7 +156,8 @@ export class MemStorage implements IStorage {
         name: "Arreglo de Lirios Blancos",
         price: "18000",
         description: "Elegante arreglo de lirios blancos en jarrón de cristal, perfecto para ocasiones formales.",
-        image: "https://images.unsplash.com/photo-1487700160041-babef9c3cb55?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
+        image:
+          "https://images.unsplash.com/photo-1487700160041-babef9c3cb55?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
         rating: "5.0",
         reviewCount: 31,
         inStock: true,
@@ -137,7 +166,8 @@ export class MemStorage implements IStorage {
         name: "Ramo de Girasoles Alegres",
         price: "14000",
         description: "Vibrante ramo de girasoles frescos envuelto en papel kraft, perfecto para alegrar cualquier día.",
-        image: "https://images.unsplash.com/photo-1574684891174-df6b02ab38d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
+        image:
+          "https://images.unsplash.com/photo-1574684891174-df6b02ab38d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
         rating: "4.0",
         reviewCount: 15,
         inStock: true,
@@ -146,7 +176,8 @@ export class MemStorage implements IStorage {
         name: "Bouquet de Rosas Rosadas",
         price: "13000",
         description: "Delicado bouquet de rosas rosadas con eucalipto, envuelto en seda blanca.",
-        image: "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
+        image:
+          "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
         rating: "4.5",
         reviewCount: 22,
         inStock: true,
@@ -155,25 +186,26 @@ export class MemStorage implements IStorage {
         name: "Arreglo Tropical Exótico",
         price: "22000",
         description: "Impresionante arreglo con flores tropicales exóticas en colores vibrantes.",
-        image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
+        image:
+          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600",
         rating: "5.0",
         reviewCount: 8,
         inStock: true,
-      }
+      },
     ];
 
     productsData.forEach((product, index) => {
       const id = randomUUID();
       const categoryId = categoryIds[index % categoryIds.length];
-      const newProduct: Product = { 
-        ...product, 
-        id, 
+      const newProduct: Product = {
+        ...product,
+        id,
         categoryId,
         rating: product.rating ?? null,
         reviewCount: product.reviewCount ?? null,
         inStock: product.inStock ?? null,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
       this.products.set(id, newProduct);
     });
@@ -182,45 +214,47 @@ export class MemStorage implements IStorage {
     const couponsData: InsertCoupon[] = [
       { code: "BRIBRI10", discount: "10.00", isActive: true },
       { code: "PRIMAVERA15", discount: "15.00", isActive: true },
-      { code: "AMOR20", discount: "20.00", isActive: true }
+      { code: "AMOR20", discount: "20.00", isActive: true },
     ];
 
-    couponsData.forEach(coupon => {
+    couponsData.forEach((coupon) => {
       const id = randomUUID();
-      const newCoupon: Coupon = { 
-        ...coupon, 
-        id, 
+      const newCoupon: Coupon = {
+        ...coupon,
+        id,
         expiresAt: null,
         isActive: coupon.isActive ?? null,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
       this.coupons.set(id, newCoupon);
     });
   }
 
   // Admin Authentication
-  async createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, 'passwordHash'>> {
+  async createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "passwordHash">> {
     const id = randomUUID();
     const hashedPassword = await bcrypt.hash(user.passwordHash, 10);
-    
+
     const newUser: AdminUser = {
       ...user,
       id,
       passwordHash: hashedPassword,
+      role: user.role ?? "admin", // <- asegurar string
+      isActive: user.isActive ?? true, // <- boolean|null esperado
       lastLogin: null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     this.adminUsers.set(id, newUser);
-    
+
     const { passwordHash, ...userWithoutPassword } = newUser;
     return userWithoutPassword;
   }
 
-  async authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, 'passwordHash'> | null> {
+  async authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, "passwordHash"> | null> {
     const user = Array.from(this.adminUsers.values()).find(
-      u => u.username === credentials.username && u.isActive
+      (u) => u.username === credentials.username && u.isActive
     );
 
     if (!user) return null;
@@ -236,10 +270,10 @@ export class MemStorage implements IStorage {
     return userWithoutPassword;
   }
 
-  async getAdminById(id: string): Promise<Omit<AdminUser, 'passwordHash'> | null> {
+  async getAdminById(id: string): Promise<Omit<AdminUser, "passwordHash"> | null> {
     const user = this.adminUsers.get(id);
     if (!user || !user.isActive) return null;
-    
+
     const { passwordHash, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
@@ -263,10 +297,10 @@ export class MemStorage implements IStorage {
 
   async createCategory(category: InsertCategory): Promise<Category> {
     const id = randomUUID();
-    const newCategory: Category = { 
-      ...category, 
+    const newCategory: Category = {
+      ...category,
       id,
-      productCount: category.productCount ?? null
+      productCount: category.productCount ?? null,
     };
     this.categories.set(id, newCategory);
     return newCategory;
@@ -291,7 +325,7 @@ export class MemStorage implements IStorage {
   }
 
   async getProductsByCategory(categoryId: string): Promise<Product[]> {
-    return Array.from(this.products.values()).filter(product => product.categoryId === categoryId);
+    return Array.from(this.products.values()).filter((product) => product.categoryId === categoryId);
   }
 
   async getProductById(id: string): Promise<Product | undefined> {
@@ -300,18 +334,18 @@ export class MemStorage implements IStorage {
 
   async createProduct(product: InsertProduct): Promise<Product> {
     const id = randomUUID();
-    const newProduct: Product = { 
-      ...product, 
+    const newProduct: Product = {
+      ...product,
       id,
       categoryId: product.categoryId ?? null,
       rating: product.rating ?? null,
       reviewCount: product.reviewCount ?? null,
       inStock: product.inStock ?? null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     this.products.set(id, newProduct);
-    
+
     // Update category product count
     if (product.categoryId) {
       const category = this.categories.get(product.categoryId);
@@ -320,7 +354,7 @@ export class MemStorage implements IStorage {
         this.categories.set(product.categoryId, category);
       }
     }
-    
+
     return newProduct;
   }
 
@@ -328,10 +362,10 @@ export class MemStorage implements IStorage {
     const existing = this.products.get(id);
     if (!existing) return undefined;
 
-    const updated = { 
-      ...existing, 
+    const updated = {
+      ...existing,
       ...product,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     this.products.set(id, updated);
     return updated;
@@ -342,7 +376,7 @@ export class MemStorage implements IStorage {
     if (!product) return false;
 
     const deleted = this.products.delete(id);
-    
+
     // Update category product count
     if (deleted && product.categoryId) {
       const category = this.categories.get(product.categoryId);
@@ -351,22 +385,24 @@ export class MemStorage implements IStorage {
         this.categories.set(product.categoryId, category);
       }
     }
-    
+
     return deleted;
   }
 
   // Cart
   async getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]> {
-    const items = Array.from(this.cartItems.values()).filter(item => item.sessionId === sessionId);
-    return items.map(item => {
-      const product = this.products.get(item.productId!);
-      return { ...item, product: product! };
-    }).filter(item => item.product);
+    const items = Array.from(this.cartItems.values()).filter((item) => item.sessionId === sessionId);
+    return items
+      .map((item) => {
+        const product = this.products.get(item.productId!);
+        return { ...item, product: product! };
+      })
+      .filter((item) => item.product);
   }
 
   async addToCart(item: InsertCartItem): Promise<CartItem> {
     const existingItem = Array.from(this.cartItems.values()).find(
-      cartItem => cartItem.productId === item.productId && cartItem.sessionId === item.sessionId
+      (cartItem) => cartItem.productId === item.productId && cartItem.sessionId === item.sessionId
     );
 
     if (existingItem) {
@@ -376,11 +412,11 @@ export class MemStorage implements IStorage {
     }
 
     const id = randomUUID();
-    const newItem: CartItem = { 
-      ...item, 
+    const newItem: CartItem = {
+      ...item,
       id,
       productId: item.productId ?? null,
-      quantity: item.quantity ?? 0
+      quantity: item.quantity ?? 0,
     };
     this.cartItems.set(id, newItem);
     return newItem;
@@ -411,17 +447,17 @@ export class MemStorage implements IStorage {
   }
 
   async getCouponByCode(code: string): Promise<Coupon | undefined> {
-    return Array.from(this.coupons.values()).find(coupon => coupon.code === code && coupon.isActive);
+    return Array.from(this.coupons.values()).find((coupon) => coupon.code === code && !!coupon.isActive);
   }
 
   async createCoupon(coupon: InsertCoupon): Promise<Coupon> {
     const id = randomUUID();
-    const newCoupon: Coupon = { 
-      ...coupon, 
-      id, 
+    const newCoupon: Coupon = {
+      ...coupon,
+      id,
       expiresAt: null,
       isActive: coupon.isActive ?? null,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     this.coupons.set(id, newCoupon);
     return newCoupon;
@@ -442,16 +478,17 @@ export class MemStorage implements IStorage {
 
   // Orders
   async getOrders(): Promise<Order[]> {
-    return Array.from(this.orders.values()).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    // Evitar new Date(null) -> error 2769
+    return Array.from(this.orders.values()).sort(
+      (a, b) => this.safeTime(b.createdAt) - this.safeTime(a.createdAt)
     );
   }
 
   async createOrder(order: InsertOrder): Promise<Order> {
     const id = randomUUID();
-    const newOrder: Order = { 
-      ...order, 
-      id, 
+    const newOrder: Order = {
+      ...order,
+      id,
       createdAt: new Date(),
       status: order.status ?? "pending",
       discount: order.discount ?? null,
@@ -460,7 +497,7 @@ export class MemStorage implements IStorage {
       deliveryAddress: order.deliveryAddress ?? null,
       deliveryCity: order.deliveryCity ?? null,
       deliveryReference: order.deliveryReference ?? null,
-      shippingCost: order.shippingCost ?? null
+      shippingCost: order.shippingCost ?? null,
     };
     this.orders.set(id, newOrder);
     return newOrder;
@@ -481,20 +518,20 @@ export class MemStorage implements IStorage {
 
   // Reviews
   async getProductReviews(productId: string): Promise<Review[]> {
-    return Array.from(this.reviews.values()).filter(review => review.productId === productId);
+    return Array.from(this.reviews.values()).filter((review) => review.productId === productId);
   }
 
   async createReview(review: InsertReview): Promise<Review> {
     const id = randomUUID();
-    const newReview: Review = { 
-      ...review, 
-      id, 
+    const newReview: Review = {
+      ...review,
+      id,
       createdAt: new Date(),
       productId: review.productId ?? null,
-      comment: review.comment ?? null
+      comment: review.comment ?? null,
     };
     this.reviews.set(id, newReview);
-    
+
     // Update product rating
     const productId = review.productId;
     if (productId) {
@@ -507,7 +544,7 @@ export class MemStorage implements IStorage {
         this.products.set(product.id, product);
       }
     }
-    
+
     return newReview;
   }
 }

@@ -45,6 +45,43 @@ import AdminLayout from "@/components/admin-layout";
 import { FLORISTERIA_CONFIG } from "@shared/config";
 import type { Order } from "@shared/schema";
 
+// ---------- Utils seguras ----------
+function safeDate(input?: string | number | Date | null): Date | null {
+  if (!input) return null;
+  const d = input instanceof Date ? input : new Date(input);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateCR(
+  input?: string | number | Date | null,
+  withTime: boolean = true
+): string {
+  const d = safeDate(input);
+  if (!d) return "—";
+  return withTime
+    ? d.toLocaleDateString("es-CR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : d.toLocaleDateString("es-CR");
+}
+
+function toNumber(v: string | number | null | undefined): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "string") {
+    const n = parseFloat(v);
+    return Number.isNaN(n) ? 0 : n;
+  }
+  return 0;
+}
+
+function s(v: string | null | undefined): string {
+  return v ?? "";
+}
+
 const ORDER_STATUSES = [
   { value: "pending", label: "Pendiente", color: "bg-yellow-100 text-yellow-800" },
   { value: "confirmed", label: "Confirmado", color: "bg-blue-100 text-blue-800" },
@@ -63,9 +100,14 @@ export default function AdminOrders() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch orders
+  // Fetch orders con queryFn
   const { data: orders, isLoading } = useQuery<Order[]>({
     queryKey: ["/api/admin/orders"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/orders", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo pedidos");
+      return res.json();
+    },
   });
 
   // Update order status mutation
@@ -89,8 +131,8 @@ export default function AdminOrders() {
     },
   });
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  const formatPrice = (price: string | number | null | undefined) => {
+    const numPrice = toNumber(price);
     return new Intl.NumberFormat("es-CR", {
       style: "currency",
       currency: FLORISTERIA_CONFIG.currency.code,
@@ -98,17 +140,7 @@ export default function AdminOrders() {
     }).format(numPrice);
   };
 
-  const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString("es-CR", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  };
-
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = (status: string | null | undefined) => {
     return ORDER_STATUSES.find(s => s.value === status) || ORDER_STATUSES[0];
   };
 
@@ -122,21 +154,21 @@ export default function AdminOrders() {
   };
 
   const filteredOrders = orders?.filter(order => {
-    const matchesSearch = 
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerPhone.includes(searchTerm) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-    
+    const matchesSearch =
+      s(order.customerName).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s(order.customerPhone).includes(searchTerm) ||
+      s(order.id).toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === "all" || (order.status ?? "pending") === statusFilter;
+
     return matchesSearch && matchesStatus;
   }) || [];
 
   // Calculate stats
   const totalOrders = orders?.length || 0;
-  const pendingOrders = orders?.filter(o => o.status === "pending").length || 0;
-  const totalRevenue = orders?.reduce((sum, order) => sum + parseFloat(order.total), 0) || 0;
-  const deliveryOrders = orders?.filter(o => o.deliveryMethod === "delivery").length || 0;
+  const pendingOrders = orders?.filter(o => (o.status ?? "pending") === "pending").length || 0;
+  const totalRevenue = orders?.reduce((sum, order) => sum + toNumber(order.total), 0) || 0;
+  const deliveryOrders = orders?.filter(o => (o.deliveryMethod ?? "pickup") === "delivery").length || 0;
 
   return (
     <AdminLayout>
@@ -265,37 +297,37 @@ export default function AdminOrders() {
                       <TableRow key={order.id}>
                         <TableCell>
                           <span className="font-mono text-sm">
-                            {order.id.slice(0, 8)}...
+                            {s(order.id).slice(0, 8)}...
                           </span>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{order.customerName}</p>
-                            <p className="text-sm text-gray-500">{order.customerPhone}</p>
+                            <p className="font-medium">{s(order.customerName)}</p>
+                            <p className="text-sm text-gray-500">{s(order.customerPhone)}</p>
                           </div>
                         </TableCell>
                         <TableCell>
-                          {formatDate(order.createdAt)}
+                          {formatDateCR(order.createdAt)}
                         </TableCell>
                         <TableCell className="font-bold">
                           {formatPrice(order.total)}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center">
-                            {order.deliveryMethod === "delivery" ? (
+                            {((order.deliveryMethod ?? "pickup") === "delivery") ? (
                               <Truck className="w-4 h-4 mr-1 text-blue-600" />
                             ) : (
                               <Package className="w-4 h-4 mr-1 text-green-600" />
                             )}
                             <span className="text-sm">
-                              {order.deliveryMethod === "delivery" ? "Delivery" : "Pickup"}
+                              {(order.deliveryMethod ?? "pickup") === "delivery" ? "Delivery" : "Pickup"}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Select
-                            value={order.status}
-                            onValueChange={(value) => handleStatusUpdate(order.id, value)}
+                            value={order.status ?? "pending"} // Radix no acepta null
+                            onValueChange={(value) => handleStatusUpdate(s(order.id), value)}
                           >
                             <SelectTrigger className="w-32">
                               <Badge className={statusInfo.color}>
@@ -338,7 +370,7 @@ export default function AdminOrders() {
                 Detalle del Pedido
               </DialogTitle>
               <DialogDescription>
-                ID: {selectedOrder?.id}
+                ID: {s(selectedOrder?.id)}
               </DialogDescription>
             </DialogHeader>
 
@@ -354,18 +386,18 @@ export default function AdminOrders() {
                       <div className="flex items-center">
                         <div className="w-4 h-4 mr-3">👤</div>
                         <div>
-                          <p className="font-medium">{selectedOrder.customerName}</p>
-                          <p className="text-sm text-gray-500">Cédula: {selectedOrder.customerDocumentId}</p>
+                          <p className="font-medium">{s(selectedOrder.customerName)}</p>
+                          <p className="text-sm text-gray-500">Cédula: {s(selectedOrder.customerDocumentId)}</p>
                         </div>
                       </div>
                       <div className="flex items-center">
                         <Phone className="w-4 h-4 mr-3" />
-                        <span>{selectedOrder.customerPhone}</span>
+                        <span>{s(selectedOrder.customerPhone)}</span>
                       </div>
-                      {selectedOrder.customerEmail && (
+                      {s(selectedOrder.customerEmail) && (
                         <div className="flex items-center">
                           <Mail className="w-4 h-4 mr-3" />
-                          <span>{selectedOrder.customerEmail}</span>
+                          <span>{s(selectedOrder.customerEmail)}</span>
                         </div>
                       )}
                     </CardContent>
@@ -377,32 +409,32 @@ export default function AdminOrders() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex items-center">
-                        {selectedOrder.deliveryMethod === "delivery" ? (
+                        {(selectedOrder.deliveryMethod ?? "pickup") === "delivery" ? (
                           <Truck className="w-4 h-4 mr-3 text-blue-600" />
                         ) : (
                           <Package className="w-4 h-4 mr-3 text-green-600" />
                         )}
                         <span className="font-medium">
-                          {selectedOrder.deliveryMethod === "delivery" ? "Delivery" : "Recoger en tienda"}
+                          {(selectedOrder.deliveryMethod ?? "pickup") === "delivery" ? "Delivery" : "Recoger en tienda"}
                         </span>
                       </div>
-                      {selectedOrder.deliveryMethod === "delivery" && (
+                      {(selectedOrder.deliveryMethod ?? "pickup") === "delivery" && (
                         <>
-                          {selectedOrder.deliveryAddress && (
+                          {s(selectedOrder.deliveryAddress) && (
                             <div className="flex items-start">
                               <MapPin className="w-4 h-4 mr-3 mt-1" />
                               <div>
-                                <p>{selectedOrder.deliveryAddress}</p>
-                                {selectedOrder.deliveryCity && (
-                                  <p className="text-sm text-gray-500">{selectedOrder.deliveryCity}</p>
+                                <p>{s(selectedOrder.deliveryAddress)}</p>
+                                {s(selectedOrder.deliveryCity) && (
+                                  <p className="text-sm text-gray-500">{s(selectedOrder.deliveryCity)}</p>
                                 )}
                               </div>
                             </div>
                           )}
-                          {selectedOrder.deliveryReference && (
+                          {s(selectedOrder.deliveryReference) && (
                             <div className="pl-7">
                               <p className="text-sm text-gray-600">
-                                <strong>Referencia:</strong> {selectedOrder.deliveryReference}
+                                <strong>Referencia:</strong> {s(selectedOrder.deliveryReference)}
                               </p>
                             </div>
                           )}
@@ -425,11 +457,11 @@ export default function AdminOrders() {
                             <div>
                               <p className="font-medium">{item.name || `Producto ${index + 1}`}</p>
                               <p className="text-sm text-gray-600">
-                                Cantidad: {item.quantity || 1}
+                                Cantidad: {item.quantity ?? 1}
                               </p>
                             </div>
                             <p className="font-bold">
-                              {formatPrice(item.price || 0)}
+                              {formatPrice(item.price)}
                             </p>
                           </div>
                         ))}
@@ -451,13 +483,13 @@ export default function AdminOrders() {
                         <span>Subtotal:</span>
                         <span>{formatPrice(selectedOrder.subtotal)}</span>
                       </div>
-                      {selectedOrder.discount && parseFloat(selectedOrder.discount) > 0 && (
+                      {toNumber(selectedOrder.discount) > 0 && (
                         <div className="flex justify-between text-green-600">
                           <span>Descuento:</span>
                           <span>-{formatPrice(selectedOrder.discount)}</span>
                         </div>
                       )}
-                      {selectedOrder.shippingCost && parseFloat(selectedOrder.shippingCost) > 0 && (
+                      {toNumber(selectedOrder.shippingCost) > 0 && (
                         <div className="flex justify-between">
                           <span>Envío:</span>
                           <span>{formatPrice(selectedOrder.shippingCost)}</span>
@@ -472,13 +504,13 @@ export default function AdminOrders() {
                 </Card>
 
                 {/* Comments */}
-                {selectedOrder.comments && (
+                {s(selectedOrder.comments) && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Comentarios</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-gray-700">{selectedOrder.comments}</p>
+                      <p className="text-gray-700">{s(selectedOrder.comments)}</p>
                     </CardContent>
                   </Card>
                 )}
@@ -492,7 +524,7 @@ export default function AdminOrders() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 mr-2" />
-                        <span>Creado: {formatDate(selectedOrder.createdAt)}</span>
+                        <span>Creado: {formatDateCR(selectedOrder.createdAt, true)}</span>
                       </div>
                       <Badge className={getStatusInfo(selectedOrder.status).color}>
                         {getStatusInfo(selectedOrder.status).label}

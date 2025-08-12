@@ -20,31 +20,71 @@ import AdminLayout from "@/components/admin-layout";
 import { FLORISTERIA_CONFIG } from "@shared/config";
 import type { Product, Order, Category } from "@shared/schema";
 
+// --------- Utils de fecha seguras ---------
+function safeDate(input?: string | number | Date | null): Date | null {
+  if (!input) return null;
+  const d = input instanceof Date ? input : new Date(input);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateCR(
+  input?: string | number | Date | null,
+  withTime: boolean = false
+): string {
+  const d = safeDate(input);
+  if (!d) return "—";
+  return withTime
+    ? d.toLocaleDateString("es-CR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : d.toLocaleDateString("es-CR");
+}
+
 export default function AdminDashboard() {
-  // Fetch data for dashboard
+  // Fetch data for dashboard (con queryFn)
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/products", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo productos");
+      return res.json();
+    },
   });
 
   const { data: orders } = useQuery<Order[]>({
     queryKey: ["/api/admin/orders"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/orders", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo pedidos");
+      return res.json();
+    },
   });
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ["/api/admin/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/categories", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo categorías");
+      return res.json();
+    },
   });
 
   // Calculate stats
   const totalProducts = products?.length || 0;
   const totalOrders = orders?.length || 0;
   const totalCategories = categories?.length || 0;
-  const productsInStock = products?.filter((p) => p.inStock).length || 0;
+  const productsInStock = products?.filter((p) => (p as any).inStock).length || 0;
   const productsOutOfStock = totalProducts - productsInStock;
 
   // Recent orders (last 7 days)
   const recentOrders =
     orders?.filter((order) => {
-      const orderDate = new Date(order.createdAt);
+      const orderDate = safeDate((order as any).createdAt);
+      if (!orderDate) return false;
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       return orderDate >= weekAgo;
@@ -53,7 +93,9 @@ export default function AdminDashboard() {
   // Calculate revenue
   const totalRevenue =
     orders?.reduce((sum, order) => {
-      return sum + parseFloat(order.total);
+      const t = (order as any).total;
+      const num = typeof t === "number" ? t : parseFloat(String(t));
+      return sum + (Number.isNaN(num) ? 0 : num);
     }, 0) || 0;
 
   const formatPrice = (price: number) => {
@@ -64,15 +106,7 @@ export default function AdminDashboard() {
     }).format(price);
   };
 
-  const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString("es-CR", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const isDev = import.meta.env.MODE === "development";
 
   return (
     <AdminLayout>
@@ -195,25 +229,29 @@ export default function AdminDashboard() {
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                     >
                       <div>
-                        <p className="font-medium">{order.customerName}</p>
+                        <p className="font-medium">{(order as any).customerName}</p>
                         <p className="text-sm text-gray-600">
-                          {formatDate(order.createdAt)}
+                          {formatDateCR((order as any).createdAt, true)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-bold">
-                          {formatPrice(parseFloat(order.total))}
+                          {formatPrice(
+                            typeof (order as any).total === "number"
+                              ? (order as any).total
+                              : parseFloat(String((order as any).total))
+                          )}
                         </p>
                         <span
                           className={`text-xs px-2 py-1 rounded-full ${
-                            order.status === "completed"
+                            (order as any).status === "completed"
                               ? "bg-green-100 text-green-800"
-                              : order.status === "pending"
+                              : (order as any).status === "pending"
                               ? "bg-yellow-100 text-yellow-800"
                               : "bg-blue-100 text-blue-800"
                           }`}
                         >
-                          {order.status}
+                          {(order as any).status}
                         </span>
                       </div>
                     </div>
@@ -255,9 +293,7 @@ export default function AdminDashboard() {
                   <span className="font-medium">Asistente IA</span>
                 </div>
                 <span className="text-yellow-600 text-sm">
-                  {process.env.NODE_ENV === "development"
-                    ? "⚠️ Demo"
-                    : "✓ Activo"}
+                  {isDev ? "⚠️ Demo" : "✓ Activo"}
                 </span>
               </div>
 
@@ -292,10 +328,11 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {products
-                  .filter((p) => p.rating && parseFloat(p.rating) > 4.0)
+                  .filter((p) => (p as any).rating && parseFloat(String((p as any).rating)) > 4.0)
                   .sort(
                     (a, b) =>
-                      parseFloat(b.rating || "0") - parseFloat(a.rating || "0")
+                      parseFloat(String((b as any).rating || "0")) -
+                      parseFloat(String((a as any).rating || "0"))
                   )
                   .slice(0, 6)
                   .map((product) => (
@@ -304,23 +341,27 @@ export default function AdminDashboard() {
                       className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
                     >
                       <img
-                        src={product.image}
-                        alt={product.name}
+                        src={(product as any).image}
+                        alt={(product as any).name}
                         className="w-12 h-12 rounded-lg object-cover"
                       />
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{product.name}</p>
+                        <p className="font-medium text-sm">{(product as any).name}</p>
                         <div className="flex items-center mt-1">
                           <Star className="w-4 h-4 text-yellow-400 mr-1" />
-                          <span className="text-sm">{product.rating}</span>
+                          <span className="text-sm">{(product as any).rating}</span>
                           <span className="text-xs text-gray-500 ml-1">
-                            ({product.reviewCount})
+                            ({(product as any).reviewCount})
                           </span>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-sm">
-                          {formatPrice(parseFloat(product.price))}
+                          {formatPrice(
+                            typeof (product as any).price === "number"
+                              ? (product as any).price
+                              : parseFloat(String((product as any).price))
+                          )}
                         </p>
                       </div>
                     </div>

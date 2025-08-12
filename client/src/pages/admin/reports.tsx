@@ -16,58 +16,94 @@ import AdminLayout from "@/components/admin-layout";
 import { FLORISTERIA_CONFIG } from "@shared/config";
 import type { Product, Order, Category } from "@shared/schema";
 
+// -------- Helpers seguros --------
+function safeDate(input?: string | number | Date | null): Date | null {
+  if (!input) return null;
+  const d = input instanceof Date ? input : new Date(input);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function toNumber(v: string | number | null | undefined): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "string") {
+    const n = parseFloat(v);
+    return Number.isNaN(n) ? 0 : n;
+  }
+  return 0;
+}
+function s(v: string | null | undefined): string {
+  return v ?? "";
+}
+const formatPrice = (price: number) =>
+  new Intl.NumberFormat("es-CR", {
+    style: "currency",
+    currency: FLORISTERIA_CONFIG.currency.code,
+    minimumFractionDigits: 0,
+  }).format(price);
+
 export default function AdminReports() {
-  // Fetch data for reports
+  // Fetch data for reports (con queryFn)
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/products", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo productos");
+      return res.json();
+    },
   });
 
   const { data: orders } = useQuery<Order[]>({
     queryKey: ["/api/admin/orders"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/orders", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo pedidos");
+      return res.json();
+    },
   });
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ["/api/admin/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/categories", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo categorías");
+      return res.json();
+    },
   });
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("es-CR", {
-      style: "currency",
-      currency: FLORISTERIA_CONFIG.currency.code,
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
   // Calculate metrics
-  const totalRevenue = orders?.reduce((sum, order) => sum + parseFloat(order.total), 0) || 0;
+  const totalRevenue = orders?.reduce((sum, order) => sum + toNumber(order.total), 0) || 0;
   const totalOrders = orders?.length || 0;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-  // Sales by period
+  // Sales by period (sin mutar today)
   const today = new Date();
-  const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const thisWeekOrders = orders?.filter(order => 
-    new Date(order.createdAt) >= startOfWeek
-  ) || [];
+  const thisWeekOrders =
+    orders?.filter(order => {
+      const d = safeDate(order.createdAt);
+      return d ? d >= startOfWeek : false;
+    }) || [];
 
-  const thisMonthOrders = orders?.filter(order => 
-    new Date(order.createdAt) >= startOfMonth
-  ) || [];
+  const thisMonthOrders =
+    orders?.filter(order => {
+      const d = safeDate(order.createdAt);
+      return d ? d >= startOfMonth : false;
+    }) || [];
 
-  const weeklyRevenue = thisWeekOrders.reduce((sum, order) => sum + parseFloat(order.total), 0);
-  const monthlyRevenue = thisMonthOrders.reduce((sum, order) => sum + parseFloat(order.total), 0);
+  const weeklyRevenue = thisWeekOrders.reduce((sum, order) => sum + toNumber(order.total), 0);
+  const monthlyRevenue = thisMonthOrders.reduce((sum, order) => sum + toNumber(order.total), 0);
 
   // Top products by sales
   const productSales = new Map<string, { name: string; sales: number; revenue: number }>();
   orders?.forEach(order => {
     if (order.items && Array.isArray(order.items)) {
       (order.items as any[]).forEach(item => {
-        const key = item.name || 'Producto Sin Nombre';
+        const key = item.name || "Producto Sin Nombre";
         const existing = productSales.get(key) || { name: key, sales: 0, revenue: 0 };
-        existing.sales += item.quantity || 1;
-        existing.revenue += item.price || 0;
+        existing.sales += toNumber(item.quantity) || 1;
+        existing.revenue += toNumber(item.price);
         productSales.set(key, existing);
       });
     }
@@ -78,20 +114,22 @@ export default function AdminReports() {
     .slice(0, 5);
 
   // Customer metrics
-  const uniqueCustomers = new Set(orders?.map(order => order.customerPhone)).size;
-  const customerRetention = totalOrders > 0 ? ((totalOrders - uniqueCustomers) / totalOrders * 100) : 0;
+  const uniqueCustomers = new Set(orders?.map(order => s(order.customerPhone))).size;
+  const customerRetention = totalOrders > 0 ? ((totalOrders - uniqueCustomers) / totalOrders) * 100 : 0;
 
   // Delivery methods
   const deliveryStats = {
-    delivery: orders?.filter(o => o.deliveryMethod === "delivery").length || 0,
-    pickup: orders?.filter(o => o.deliveryMethod === "pickup").length || 0
+    delivery: orders?.filter(o => (o.deliveryMethod ?? "pickup") === "delivery").length || 0,
+    pickup: orders?.filter(o => (o.deliveryMethod ?? "pickup") === "pickup").length || 0,
   };
 
-  // Order status distribution
-  const statusStats = orders?.reduce((acc, order) => {
-    acc[order.status] = (acc[order.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>) || {};
+  // Order status distribution (clave segura)
+  const statusStats =
+    orders?.reduce((acc, order) => {
+      const key = order.status ?? "unknown";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>) || {};
 
   // Monthly sales trend (last 6 months)
   const monthlySales = Array.from({ length: 6 }, (_, i) => {
@@ -99,16 +137,17 @@ export default function AdminReports() {
     date.setMonth(date.getMonth() - i);
     const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
     const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    
-    const monthOrders = orders?.filter(order => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= monthStart && orderDate <= monthEnd;
-    }) || [];
+
+    const monthOrders =
+      orders?.filter(order => {
+        const d = safeDate(order.createdAt);
+        return d ? d >= monthStart && d <= monthEnd : false;
+      }) || [];
 
     return {
       month: date.toLocaleDateString("es-CR", { month: "short", year: "2-digit" }),
       orders: monthOrders.length,
-      revenue: monthOrders.reduce((sum, order) => sum + parseFloat(order.total), 0)
+      revenue: monthOrders.reduce((sum, order) => sum + toNumber(order.total), 0),
     };
   }).reverse();
 
@@ -267,7 +306,7 @@ export default function AdminReports() {
                   <div 
                     className="bg-blue-500 h-3 rounded-l-full"
                     style={{ 
-                      width: totalOrders > 0 ? `${(deliveryStats.delivery / totalOrders) * 100}%` : '0%' 
+                      width: totalOrders > 0 ? `${(deliveryStats.delivery / totalOrders) * 100}%` : "0%" 
                     }}
                   ></div>
                 </div>
@@ -332,7 +371,14 @@ export default function AdminReports() {
                         <div 
                           className="bg-primary h-2 rounded-full"
                           style={{ 
-                            width: month.revenue > 0 ? `${Math.min((month.revenue / Math.max(...monthlySales.map(m => m.revenue))) * 100, 100)}%` : '0%'
+                            width:
+                              month.revenue > 0
+                                ? `${Math.min(
+                                    (month.revenue /
+                                      Math.max(...monthlySales.map(m => m.revenue), 1)) * 100,
+                                    100
+                                  )}%`
+                                : "0%"
                           }}
                         ></div>
                       </div>
@@ -385,7 +431,7 @@ export default function AdminReports() {
                 <ul className="text-sm text-green-700 space-y-1">
                   <li>• Ticket promedio alto: {formatPrice(averageOrderValue)}</li>
                   <li>• {uniqueCustomers} clientes únicos registrados</li>
-                  <li>• {products?.filter(p => p.inStock).length} productos disponibles</li>
+                  <li>• {products?.filter(p => (p as any).inStock).length || 0} productos disponibles</li>
                 </ul>
               </div>
 

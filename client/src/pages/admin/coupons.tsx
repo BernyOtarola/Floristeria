@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -32,15 +38,22 @@ import {
   Ticket,
   Copy,
   Calendar,
-  Percent
+  Percent,
 } from "lucide-react";
 import AdminLayout from "@/components/admin-layout";
 import { FLORISTERIA_CONFIG } from "@shared/config";
 import type { Coupon } from "@shared/schema";
 
+// ---------- Utils ----------
+function formatDateCR(input?: string | number | Date | null): string {
+  if (!input) return "—";
+  const d = input instanceof Date ? input : new Date(input);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es-CR");
+}
+
 interface CouponFormData {
   code: string;
-  discount: string;
+  discount: string; // porcentaje en string para el input
   isActive: boolean;
 }
 
@@ -55,12 +68,22 @@ export default function AdminCoupons() {
     isActive: true,
   });
 
+  const setField = <K extends keyof CouponFormData>(
+    field: K,
+    value: CouponFormData[K]
+  ) => setFormData((prev) => ({ ...prev, [field]: value }));
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch coupons
+  // Fetch coupons (con queryFn)
   const { data: coupons, isLoading } = useQuery<Coupon[]>({
     queryKey: ["/api/admin/coupons"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/coupons", { credentials: "include" });
+      if (!res.ok) throw new Error("Error obteniendo cupones");
+      return res.json();
+    },
   });
 
   // Create coupon mutation
@@ -88,7 +111,10 @@ export default function AdminCoupons() {
 
   // Update coupon mutation
   const updateCouponMutation = useMutation({
-    mutationFn: async ({ id, ...couponData }: { id: string } & CouponFormData) => {
+    mutationFn: async ({
+      id,
+      ...couponData
+    }: { id: string } & CouponFormData) => {
       const response = await fetch(`/api/admin/coupons/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -136,16 +162,12 @@ export default function AdminCoupons() {
     });
   };
 
-  const handleInputChange = (field: keyof CouponFormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   const generateCouponCode = () => {
-    const codes = ['FLORES', 'BRIBRI', 'AMOR', 'PRIMAVERA', 'ESPECIAL'];
-    const numbers = ['10', '15', '20', '25'];
+    const codes = ["FLORES", "BRIBRI", "AMOR", "PRIMAVERA", "ESPECIAL"];
+    const numbers = ["10", "15", "20", "25"];
     const randomCode = codes[Math.floor(Math.random() * codes.length)];
     const randomNumber = numbers[Math.floor(Math.random() * numbers.length)];
-    setFormData(prev => ({ ...prev, code: `${randomCode}${randomNumber}` }));
+    setField("code", `${randomCode}${randomNumber}`);
   };
 
   const handleCreateCoupon = () => {
@@ -159,7 +181,7 @@ export default function AdminCoupons() {
     }
 
     const discount = parseFloat(formData.discount);
-    if (discount <= 0 || discount > 100) {
+    if (discount <= 0 || discount > 100 || Number.isNaN(discount)) {
       toast({
         title: "Descuento inválido",
         description: "El descuento debe ser entre 1% y 100%.",
@@ -175,7 +197,7 @@ export default function AdminCoupons() {
     setEditingCoupon(coupon);
     setFormData({
       code: coupon.code,
-      discount: coupon.discount,
+      discount: String(coupon.discount),
       isActive: coupon.isActive ?? true,
     });
     setIsEditDialogOpen(true);
@@ -183,7 +205,6 @@ export default function AdminCoupons() {
 
   const handleUpdateCoupon = () => {
     if (!editingCoupon) return;
-
     updateCouponMutation.mutate({
       id: editingCoupon.id,
       ...formData,
@@ -191,7 +212,11 @@ export default function AdminCoupons() {
   };
 
   const handleDeleteCoupon = (coupon: Coupon) => {
-    if (confirm(`¿Estás seguro de que quieres eliminar el cupón "${coupon.code}"?`)) {
+    if (
+      confirm(
+        `¿Estás seguro de que quieres eliminar el cupón "${coupon.code}"?`
+      )
+    ) {
       deleteCouponMutation.mutate(coupon.id);
     }
   };
@@ -204,20 +229,22 @@ export default function AdminCoupons() {
     });
   };
 
-  const filteredCoupons = coupons?.filter(coupon =>
-    coupon.code.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredCoupons =
+    coupons?.filter((coupon) =>
+      coupon.code.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
 
-  const activeCoupons = coupons?.filter(c => c.isActive).length || 0;
-  const totalDiscount = coupons?.reduce((sum, c) => sum + parseFloat(c.discount), 0) || 0;
+  const activeCoupons = coupons?.filter((c) => c.isActive).length || 0;
+  const totalDiscount =
+    coupons?.reduce((sum, c) => sum + parseFloat(String(c.discount)), 0) || 0;
 
-  const CouponDialog = ({ 
-    isOpen, 
-    onOpenChange, 
-    title, 
-    description, 
-    onSave, 
-    isLoading 
+  const CouponDialog = ({
+    isOpen,
+    onOpenChange,
+    title,
+    description,
+    onSave,
+    isLoading,
   }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
@@ -232,7 +259,7 @@ export default function AdminCoupons() {
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="code">Código del Cupón</Label>
@@ -240,7 +267,7 @@ export default function AdminCoupons() {
               <Input
                 id="code"
                 value={formData.code}
-                onChange={(e) => handleInputChange("code", e.target.value.toUpperCase())}
+                onChange={(e) => setField("code", e.target.value.toUpperCase())}
                 placeholder="FLORES20"
                 className="uppercase"
               />
@@ -254,7 +281,7 @@ export default function AdminCoupons() {
               </Button>
             </div>
           </div>
-          
+
           <div className="grid gap-2">
             <Label htmlFor="discount">Descuento (%)</Label>
             <Input
@@ -263,16 +290,16 @@ export default function AdminCoupons() {
               min="1"
               max="100"
               value={formData.discount}
-              onChange={(e) => handleInputChange("discount", e.target.value)}
+              onChange={(e) => setField("discount", e.target.value)}
               placeholder="20"
             />
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Switch
               id="active"
               checked={formData.isActive}
-              onCheckedChange={(checked) => handleInputChange("isActive", checked)}
+              onCheckedChange={(checked) => setField("isActive", checked)}
             />
             <Label htmlFor="active">Cupón activo</Label>
           </div>
@@ -283,7 +310,9 @@ export default function AdminCoupons() {
               <Label className="text-sm text-gray-600">Vista Previa:</Label>
               <div className="mt-2 text-center">
                 <div className="font-bold text-lg">{formData.code}</div>
-                <div className="text-primary text-2xl font-bold">{formData.discount}% OFF</div>
+                <div className="text-primary text-2xl font-bold">
+                  {formData.discount}% OFF
+                </div>
                 <div className="text-sm text-gray-600">
                   en tu próxima compra
                 </div>
@@ -291,7 +320,7 @@ export default function AdminCoupons() {
             </div>
           )}
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
@@ -317,8 +346,11 @@ export default function AdminCoupons() {
               Administra códigos de descuento para {FLORISTERIA_CONFIG.name}
             </p>
           </div>
-          
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
@@ -335,33 +367,42 @@ export default function AdminCoupons() {
               <div className="flex items-center">
                 <Ticket className="h-8 w-8 text-primary" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Cupones</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Cupones
+                  </p>
                   <p className="text-2xl font-bold">{coupons?.length || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
                 <Calendar className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Cupones Activos</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Cupones Activos
+                  </p>
                   <p className="text-2xl font-bold">{activeCoupons}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
                 <Percent className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Descuento Promedio</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Descuento Promedio
+                  </p>
                   <p className="text-2xl font-bold">
-                    {coupons?.length ? Math.round(totalDiscount / coupons.length) : 0}%
+                    {coupons?.length
+                      ? Math.round(totalDiscount / coupons.length)
+                      : 0}
+                    %
                   </p>
                 </div>
               </div>
@@ -411,7 +452,9 @@ export default function AdminCoupons() {
                     <TableRow key={coupon.id}>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <span className="font-mono font-bold">{coupon.code}</span>
+                          <span className="font-mono font-bold">
+                            {coupon.code}
+                          </span>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -425,16 +468,20 @@ export default function AdminCoupons() {
                       <TableCell>
                         <div className="flex items-center">
                           <Percent className="w-4 h-4 mr-1 text-green-600" />
-                          <span className="font-bold text-green-600">{coupon.discount}%</span>
+                          <span className="font-bold text-green-600">
+                            {coupon.discount}%
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={coupon.isActive ? "default" : "secondary"}>
+                        <Badge
+                          variant={coupon.isActive ? "default" : "secondary"}
+                        >
                           {coupon.isActive ? "Activo" : "Inactivo"}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(coupon.createdAt).toLocaleDateString("es-CR")}
+                        {formatDateCR((coupon as any).createdAt)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
