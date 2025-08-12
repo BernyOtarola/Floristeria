@@ -42,6 +42,13 @@ const requireAdmin = (req: any, res: any, next: any) => {
   next();
 };
 
+const requireUser = (req: any, res: any, next: any) => {
+  if (!req.session.userId || !req.session.user || req.session.user.role !== "user") {
+    return res.status(403).json({ message: "Solo usuarios" });
+  }
+  next();
+};
+
 // ---------------- Schemas (zod) para auth ----------------
 const userRegisterSchema = z.object({
   email: z.string().email(),
@@ -55,7 +62,7 @@ const userLoginSchema = z.object({
 });
 
 const adminLoginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email(), // login admin por correo
   password: z.string().min(6),
 });
 
@@ -68,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: false, // true en HTTPS
+        secure: false, // true en HTTPS/Reverse proxy
         sameSite: "lax",
         maxAge: 24 * 60 * 60 * 1000, // 24h
       },
@@ -86,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         passwordHash: data.password,
         name: data.name ?? null,
       });
-      // opcional: autologin
+      // Autologin
       req.session.userId = user.id;
       req.session.user = {
         id: user.id,
@@ -119,14 +126,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/auth/me", async (req, res) => {
-    if (!req.session.userId || !req.session.user) {
-      return res.status(401).json({ message: "No autenticado" });
-    }
-    if (req.session.user.role !== "user") {
-      return res.status(403).json({ message: "No es usuario" });
-    }
-    const me = await storage.getUserById(req.session.userId);
+  app.get("/api/auth/me", requireUser, async (req, res) => {
+    const me = await storage.getUserById(req.session.userId!);
     if (!me) {
       req.session.destroy(() => {});
       return res.status(401).json({ message: "Usuario no encontrado" });
@@ -134,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ user: me });
   });
 
-  app.post("/api/auth/logout", requireAuth, (req, res) => {
+  app.post("/api/auth/logout", requireUser, (req, res) => {
     req.session.destroy((err) => {
       if (err) return res.status(500).json({ message: "Error al cerrar sesión" });
       res.clearCookie("connect.sid");
@@ -149,8 +150,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/auth/login", async (req, res) => {
     try {
       const { email, password } = adminLoginSchema.parse(req.body);
-      // usamos authenticateAdmin con el email en el campo username
-      const admin = await storage.authenticateAdmin({ username: email, password });
+      // storage.authenticateAdmin acepta email o username
+      const admin = await storage.authenticateAdmin({ email, password });
       if (!admin) return res.status(401).json({ message: "Credenciales inválidas" });
 
       req.session.userId = admin.id;
@@ -172,24 +173,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/admin/auth/me", requireAdmin, async (_req, res) => {
-    // si pasa requireAdmin, está autenticado como admin
     res.json({ ok: true, role: "admin" });
+  });
+
+  app.post("/api/admin/auth/logout", requireAdmin, (req, res) => {
+    req.session.destroy((err) => {
+      if (err) return res.status(500).json({ message: "Error al cerrar sesión" });
+      res.clearCookie("connect.sid");
+      res.json({ message: "Sesión admin cerrada" });
+    });
   });
 
   // ================================
   // SUSCRIPCIONES / NOTIFICACIONES
   // ================================
   app.post("/api/notifications/subscribe", async (req, res) => {
-    const email = z.string().email().parse(req.body?.email);
-    const sub = await storage.subscribeEmail(email);
-    // aquí podrías disparar email de bienvenida
-    res.json({ ok: true, subscriberId: sub.id });
+    try {
+      const email = z.string().email().parse(req.body?.email);
+      const sub = await storage.subscribeEmail(email);
+      res.json({ ok: true, subscriberId: sub.id });
+    } catch (e: any) {
+      res.status(400).json({ message: e?.message ?? "Email inválido" });
+    }
   });
 
   // ================================
   // ADMIN ROUTES (Protegidas con requireAdmin)
   // ================================
-  // Categories Management
+  // Categories
   app.get("/api/admin/categories", requireAdmin, async (_req, res) => {
     try {
       const categories = await storage.getCategories();
@@ -230,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Products Management
+  // Products
   app.get("/api/admin/products", requireAdmin, async (_req, res) => {
     try {
       const products = await storage.getProducts();
@@ -271,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Coupons Management
+  // Coupons
   app.get("/api/admin/coupons", requireAdmin, async (_req, res) => {
     try {
       const coupons = await storage.getCoupons();
@@ -312,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Orders Management
+  // Orders
   app.get("/api/admin/orders", requireAdmin, async (_req, res) => {
     try {
       const orders = await storage.getOrders();

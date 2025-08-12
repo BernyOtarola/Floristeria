@@ -14,20 +14,23 @@ import {
   type InsertOrder,
   type InsertReview,
   type InsertAdminUser,
-  type LoginData,
-  // NUEVOS tipos (añádelos en @shared/schema)
+  type LoginData, // (admin) username + password en tu schema
+  // ---- nuevos tipos (añádelos en @shared/schema si no existen) ----
   type User,
   type InsertUser,
-  type LoginDataUser,
+  type LoginDataUser, // { email: string; password: string }
   type Subscriber,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
 
+// Permitir login de admin con email o username
+type AdminLoginInput = { username?: string; email?: string; password: string };
+
 export interface IStorage {
   // Admin Authentication
   createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "passwordHash">>;
-  authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, "passwordHash"> | null>;
+  authenticateAdmin(credentials: AdminLoginInput): Promise<Omit<AdminUser, "passwordHash"> | null>;
   getAdminById(id: string): Promise<Omit<AdminUser, "passwordHash"> | null>;
   updateAdminLastLogin(id: string): Promise<void>;
 
@@ -80,10 +83,12 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  // Auth
   private adminUsers: Map<string, AdminUser> = new Map();
-  private users: Map<string, User> = new Map(); // NUEVO
-  private subscribers: Map<string, Subscriber> = new Map(); // NUEVO
+  private users: Map<string, User> = new Map();
+  private subscribers: Map<string, Subscriber> = new Map();
 
+  // Data
   private categories: Map<string, Category> = new Map();
   private products: Map<string, Product> = new Map();
   private cartItems: Map<string, CartItem> = new Map();
@@ -107,7 +112,7 @@ export class MemStorage implements IStorage {
     // Admin por defecto
     const defaultAdmin: InsertAdminUser = {
       username: "admin",
-      email: "Fannyaleman0312@gmail.com",
+      email: "FannyAleman0312@gmail.com", // <- EXACTO
       passwordHash: await bcrypt.hash("FloBribri2024!", 10),
       role: "super_admin",
       isActive: true,
@@ -267,14 +272,19 @@ export class MemStorage implements IStorage {
     return userWithoutPassword;
   }
 
-  async authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, "passwordHash"> | null> {
-    // Permitir que 'username' sea correo o username
-    const uin = credentials.username.toLowerCase();
+  async authenticateAdmin(credentials: AdminLoginInput): Promise<Omit<AdminUser, "passwordHash"> | null> {
+    const ident = (credentials.email ?? credentials.username ?? "").toLowerCase().trim();
+    if (!ident || !credentials.password) return null;
+
     const user = Array.from(this.adminUsers.values()).find(
-      (u) => (u.username.toLowerCase() === uin || u.email.toLowerCase() === uin) && u.isActive
+      (u) =>
+        u.isActive &&
+        ((u.username && u.username.toLowerCase() === ident) ||
+          (u.email && u.email.toLowerCase() === ident))
     );
 
     if (!user) return null;
+
     const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
     if (!isValidPassword) return null;
 
