@@ -1,5 +1,6 @@
 import { ShoppingCart, Menu } from "lucide-react";
 import { FLORISTERIA_CONFIG } from "@shared/config";
+import AuthButtons from "@/components/auth-buttons";
 
 interface NavigationProps {
   cartItemCount: number;
@@ -18,6 +19,7 @@ export default function Navigation({ cartItemCount, onToggleCart }: NavigationPr
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Brand */}
           <div className="flex items-center">
             <h1 className="text-2xl font-serif font-bold text-primary">
               {FLORISTERIA_CONFIG.name}
@@ -26,27 +28,28 @@ export default function Navigation({ cartItemCount, onToggleCart }: NavigationPr
               {FLORISTERIA_CONFIG.slogan}
             </span>
           </div>
-          
+
+          {/* Desktop menu */}
           <div className="hidden md:flex space-x-8">
-            <button 
+            <button
               onClick={() => scrollToSection("inicio")}
               className="text-gray-700 hover:text-primary transition-colors"
             >
               Inicio
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection("catalogo")}
               className="text-gray-700 hover:text-primary transition-colors"
             >
               Catálogo
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection("nosotros")}
               className="text-gray-700 hover:text-primary transition-colors"
             >
               Nosotros
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection("contacto")}
               className="text-gray-700 hover:text-primary transition-colors"
             >
@@ -54,8 +57,9 @@ export default function Navigation({ cartItemCount, onToggleCart }: NavigationPr
             </button>
           </div>
 
+          {/* Actions: Cart + Auth */}
           <div className="flex items-center space-x-4">
-            <button 
+            <button
               onClick={onToggleCart}
               className="relative p-2 text-gray-600 hover:text-primary transition-colors"
             >
@@ -66,6 +70,11 @@ export default function Navigation({ cartItemCount, onToggleCart }: NavigationPr
                 </span>
               )}
             </button>
+
+            {/* Botones de autenticación */}
+            <AuthButtons />
+
+            {/* Mobile menu icon */}
             <button className="md:hidden p-2 text-gray-600">
               <Menu className="w-6 h-6" />
             </button>

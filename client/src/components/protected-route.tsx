@@ -1,28 +1,54 @@
-import { useEffect } from "react";
+// client/src/components/protected-route.tsx
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flower } from "lucide-react";
 
-interface ProtectedRouteProps {
+type ProtectedRouteProps = {
   children: React.ReactNode;
-}
+  /** Si es true, valida sesión de admin (/api/admin/auth/me). Si es false, valida usuario (/api/auth/me) */
+  requireAdmin?: boolean;
+  /** Ruta de login a la que redirigir si no hay sesión. Por defecto /admin/login o /login según requireAdmin */
+  redirectTo?: string;
+};
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, checkAuth } = useAuth();
-  const [, setLocation] = useLocation();
+export default function ProtectedRoute({
+  children,
+  requireAdmin = true,
+  redirectTo,
+}: ProtectedRouteProps) {
+  const [status, setStatus] = useState<"checking" | "ok" | "nope">("checking");
+  const [loc, setLocation] = useLocation();
+
+  const meEndpoint = requireAdmin ? "/api/admin/auth/me" : "/api/auth/me";
+  const loginPath = useMemo(
+    () => redirectTo ?? (requireAdmin ? "/admin/login" : "/login"),
+    [redirectTo, requireAdmin]
+  );
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(meEndpoint, { credentials: "include" });
+        if (!cancelled) setStatus(res.ok ? "ok" : "nope");
+      } catch {
+        if (!cancelled) setStatus("nope");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meEndpoint]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setLocation("/admin/login");
+    if (status === "nope") {
+      const next = encodeURIComponent(loc || "/");
+      setLocation(`${loginPath}?next=${next}`);
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [status, setLocation, loginPath, loc]);
 
-  if (isLoading) {
+  if (status === "checking") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -38,9 +64,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!isAuthenticated) {
-    return null; // Will redirect to login
-  }
+  if (status === "nope") return null; // redirigido
 
   return <>{children}</>;
 }

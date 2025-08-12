@@ -120,6 +120,34 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   createdAt: true,
 });
 
+export interface User {
+  id: string;
+  email: string;
+  passwordHash: string;
+  name: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  isVerified: boolean | null;
+}
+
+export type InsertUser = {
+  email: string;
+  passwordHash: string; // plain en input del server -> se hashea en storage
+  name?: string | null;
+};
+
+export type LoginDataUser = {
+  email: string;
+  password: string;
+};
+
+export interface Subscriber {
+  id: string;
+  email: string;
+  createdAt: Date;
+  verified: boolean | null;
+}
+
 // Login schema
 export const loginSchema = z.object({
   username: z.string().min(1, "Usuario requerido"),

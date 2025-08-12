@@ -4,19 +4,22 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 export async function createViteServer(): Promise<ViteDevServer> {
-  const root = fileURLToPath(new URL("../client", import.meta.url));
-  const shared = fileURLToPath(new URL("../shared", import.meta.url));
-  const assets = fileURLToPath(new URL("../attached_assets", import.meta.url));
+  const serverDir = path.dirname(fileURLToPath(new URL(import.meta.url)));
+  const projectRoot = path.resolve(serverDir, "..");        // <repo root>
+  const clientRoot = path.resolve(projectRoot, "client");
+  const shared = path.resolve(projectRoot, "shared");
+  const assets = path.resolve(projectRoot, "attached_assets");
 
-  // Usamos el config de vite.config.ts, pero forzamos root y fs.allow
   const vite = await createServer({
-    root,
+    // 👇 MUY IMPORTANTE: usa tu vite.config.ts (donde definiste alias "@")
+    configFile: path.resolve(projectRoot, "vite.config.ts"),
+    root: clientRoot,
     appType: "custom",
     server: {
       middlewareMode: true,
       fs: {
         strict: true,
-        allow: [root, shared, assets],
+        allow: [clientRoot, shared, assets, projectRoot],
       },
     },
   });

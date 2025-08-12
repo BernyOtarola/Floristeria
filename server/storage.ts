@@ -15,6 +15,11 @@ import {
   type InsertReview,
   type InsertAdminUser,
   type LoginData,
+  // NUEVOS tipos (añádelos en @shared/schema)
+  type User,
+  type InsertUser,
+  type LoginDataUser,
+  type Subscriber,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -25,6 +30,14 @@ export interface IStorage {
   authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, "passwordHash"> | null>;
   getAdminById(id: string): Promise<Omit<AdminUser, "passwordHash"> | null>;
   updateAdminLastLogin(id: string): Promise<void>;
+
+  // Users
+  createUser(user: InsertUser): Promise<Omit<User, "passwordHash">>;
+  authenticateUser(credentials: LoginDataUser): Promise<Omit<User, "passwordHash"> | null>;
+  getUserById(id: string): Promise<Omit<User, "passwordHash"> | null>;
+
+  // Subscribers
+  subscribeEmail(email: string): Promise<Subscriber>;
 
   // Categories
   getCategories(): Promise<Category[]>;
@@ -68,6 +81,9 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private adminUsers: Map<string, AdminUser> = new Map();
+  private users: Map<string, User> = new Map(); // NUEVO
+  private subscribers: Map<string, Subscriber> = new Map(); // NUEVO
+
   private categories: Map<string, Category> = new Map();
   private products: Map<string, Product> = new Map();
   private cartItems: Map<string, CartItem> = new Map();
@@ -88,7 +104,7 @@ export class MemStorage implements IStorage {
   }
 
   private async initializeData() {
-    // Initialize default admin user
+    // Admin por defecto
     const defaultAdmin: InsertAdminUser = {
       username: "admin",
       email: "Fannyaleman0312@gmail.com",
@@ -99,7 +115,6 @@ export class MemStorage implements IStorage {
 
     const adminId = randomUUID();
     const admin: AdminUser = {
-      // ⚠️ Forzamos role:string e isActive:boolean|null para que no queden como undefined
       ...defaultAdmin,
       id: adminId,
       role: defaultAdmin.role ?? "admin",
@@ -110,7 +125,7 @@ export class MemStorage implements IStorage {
     };
     this.adminUsers.set(adminId, admin);
 
-    // Initialize categories
+    // Categorías demo
     const categoriesData: InsertCategory[] = [
       { name: "Rosas", icon: "fas fa-rose", color: "from-pink-100 to-pink-200", productCount: 12 },
       { name: "Ramos", icon: "fas fa-leaf", color: "from-green-100 to-green-200", productCount: 18 },
@@ -128,7 +143,7 @@ export class MemStorage implements IStorage {
       this.categories.set(id, newCategory);
     });
 
-    // Initialize products
+    // Productos demo
     const categoryIds = Array.from(this.categories.keys());
     const productsData: Omit<InsertProduct, "categoryId">[] = [
       {
@@ -210,7 +225,7 @@ export class MemStorage implements IStorage {
       this.products.set(id, newProduct);
     });
 
-    // Initialize sample coupons
+    // Cupones demo
     const couponsData: InsertCoupon[] = [
       { code: "BRIBRI10", discount: "10.00", isActive: true },
       { code: "PRIMAVERA15", discount: "15.00", isActive: true },
@@ -230,7 +245,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  // Admin Authentication
+  // -------------------- Admin Authentication --------------------
   async createAdminUser(user: InsertAdminUser): Promise<Omit<AdminUser, "passwordHash">> {
     const id = randomUUID();
     const hashedPassword = await bcrypt.hash(user.passwordHash, 10);
@@ -239,8 +254,8 @@ export class MemStorage implements IStorage {
       ...user,
       id,
       passwordHash: hashedPassword,
-      role: user.role ?? "admin", // <- asegurar string
-      isActive: user.isActive ?? true, // <- boolean|null esperado
+      role: user.role ?? "admin",
+      isActive: user.isActive ?? true,
       lastLogin: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -253,16 +268,16 @@ export class MemStorage implements IStorage {
   }
 
   async authenticateAdmin(credentials: LoginData): Promise<Omit<AdminUser, "passwordHash"> | null> {
+    // Permitir que 'username' sea correo o username
+    const uin = credentials.username.toLowerCase();
     const user = Array.from(this.adminUsers.values()).find(
-      (u) => u.username === credentials.username && u.isActive
+      (u) => (u.username.toLowerCase() === uin || u.email.toLowerCase() === uin) && u.isActive
     );
 
     if (!user) return null;
-
     const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
     if (!isValidPassword) return null;
 
-    // Update last login
     user.lastLogin = new Date();
     this.adminUsers.set(user.id, user);
 
@@ -286,7 +301,69 @@ export class MemStorage implements IStorage {
     }
   }
 
-  // Categories
+  // -------------------- Users --------------------
+  async createUser(user: InsertUser): Promise<Omit<User, "passwordHash">> {
+    const exists = Array.from(this.users.values()).some(
+      (u) => u.email.toLowerCase() === user.email.toLowerCase()
+    );
+    if (exists) throw new Error("Email ya registrado");
+
+    const id = randomUUID();
+    const hashed = await bcrypt.hash(user.passwordHash, 10);
+
+    const newUser: User = {
+      id,
+      email: user.email,
+      passwordHash: hashed,
+      name: user.name ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isVerified: null,
+    };
+    this.users.set(id, newUser);
+
+    const { passwordHash, ...rest } = newUser;
+    return rest;
+  }
+
+  async authenticateUser(credentials: LoginDataUser): Promise<Omit<User, "passwordHash"> | null> {
+    const user = Array.from(this.users.values()).find(
+      (u) => u.email.toLowerCase() === credentials.email.toLowerCase()
+    );
+    if (!user) return null;
+
+    const ok = await bcrypt.compare(credentials.password, user.passwordHash);
+    if (!ok) return null;
+
+    const { passwordHash, ...rest } = user;
+    return rest;
+  }
+
+  async getUserById(id: string): Promise<Omit<User, "passwordHash"> | null> {
+    const u = this.users.get(id);
+    if (!u) return null;
+    const { passwordHash, ...rest } = u;
+    return rest;
+  }
+
+  // -------------------- Subscribers --------------------
+  async subscribeEmail(email: string): Promise<Subscriber> {
+    const existing = Array.from(this.subscribers.values()).find(
+      (s) => s.email.toLowerCase() === email.toLowerCase()
+    );
+    if (existing) return existing;
+
+    const sub: Subscriber = {
+      id: randomUUID(),
+      email,
+      createdAt: new Date(),
+      verified: null,
+    };
+    this.subscribers.set(sub.id, sub);
+    return sub;
+  }
+
+  // -------------------- Categories --------------------
   async getCategories(): Promise<Category[]> {
     return Array.from(this.categories.values());
   }
@@ -319,7 +396,7 @@ export class MemStorage implements IStorage {
     return this.categories.delete(id);
   }
 
-  // Products
+  // -------------------- Products --------------------
   async getProducts(): Promise<Product[]> {
     return Array.from(this.products.values());
   }
@@ -389,7 +466,7 @@ export class MemStorage implements IStorage {
     return deleted;
   }
 
-  // Cart
+  // -------------------- Cart --------------------
   async getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]> {
     const items = Array.from(this.cartItems.values()).filter((item) => item.sessionId === sessionId);
     return items
@@ -441,7 +518,7 @@ export class MemStorage implements IStorage {
     items.forEach(([id]) => this.cartItems.delete(id));
   }
 
-  // Coupons
+  // -------------------- Coupons --------------------
   async getCoupons(): Promise<Coupon[]> {
     return Array.from(this.coupons.values());
   }
@@ -476,9 +553,8 @@ export class MemStorage implements IStorage {
     return this.coupons.delete(id);
   }
 
-  // Orders
+  // -------------------- Orders --------------------
   async getOrders(): Promise<Order[]> {
-    // Evitar new Date(null) -> error 2769
     return Array.from(this.orders.values()).sort(
       (a, b) => this.safeTime(b.createdAt) - this.safeTime(a.createdAt)
     );
@@ -516,7 +592,7 @@ export class MemStorage implements IStorage {
     return order;
   }
 
-  // Reviews
+  // -------------------- Reviews --------------------
   async getProductReviews(productId: string): Promise<Review[]> {
     return Array.from(this.reviews.values()).filter((review) => review.productId === productId);
   }
