@@ -1,173 +1,204 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+// shared/schema.ts
 import { z } from "zod";
 
-// Tabla de usuarios admin
-export const adminUsers = pgTable("admin_users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("admin"), // admin, super_admin
-  isActive: boolean("is_active").default(true),
-  lastLogin: timestamp("last_login"),
-  createdAt: timestamp("created_at").default(sql`now()`),
-  updatedAt: timestamp("updated_at").default(sql`now()`),
+/* ========= Admin ========= */
+export const adminUserSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  email: z.string().email(),
+  passwordHash: z.string(),
+  role: z.string(), // "admin" | "super_admin" (libre, pero string no vacía)
+  isActive: z.boolean().nullable(), // puede ser null en MemStorage
+  lastLogin: z.date().nullable(),
+  createdAt: z.date().nullable().default(null),
+  updatedAt: z.date().nullable().default(null),
 });
+export type AdminUser = z.infer<typeof adminUserSchema>;
 
-export const categories = pgTable("categories", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  icon: text("icon").notNull(),
-  color: text("color").notNull(),
-  productCount: integer("product_count").default(0),
-});
-
-export const products = pgTable("products", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  description: text("description").notNull(),
-  image: text("image").notNull(),
-  categoryId: varchar("category_id").references(() => categories.id),
-  rating: decimal("rating", { precision: 2, scale: 1 }).default("0.0"),
-  reviewCount: integer("review_count").default(0),
-  inStock: boolean("in_stock").default(true),
-  createdAt: timestamp("created_at").default(sql`now()`),
-  updatedAt: timestamp("updated_at").default(sql`now()`),
-});
-
-export const cartItems = pgTable("cart_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: varchar("product_id").references(() => products.id),
-  quantity: integer("quantity").notNull().default(1),
-  sessionId: text("session_id").notNull(),
-});
-
-export const coupons = pgTable("coupons", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
-  discount: decimal("discount", { precision: 5, scale: 2 }).notNull(),
-  isActive: boolean("is_active").default(true),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").default(sql`now()`),
-});
-
-export const orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerName: text("customer_name").notNull(),
-  customerPhone: text("customer_phone").notNull(),
-  customerEmail: text("customer_email"),
-  customerDocumentId: text("customer_document_id").notNull(),
-  deliveryMethod: text("delivery_method").notNull(), // "pickup" or "delivery"
-  deliveryAddress: text("delivery_address"),
-  deliveryCity: text("delivery_city"),
-  deliveryReference: text("delivery_reference"),
-  items: jsonb("items").notNull(),
-  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
-  discount: decimal("discount", { precision: 10, scale: 2 }).default("0.00"),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0.00"),
-  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
-  comments: text("comments"),
-  status: text("status").default("pending"),
-  createdAt: timestamp("created_at").default(sql`now()`),
-});
-
-export const reviews = pgTable("reviews", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: varchar("product_id").references(() => products.id),
-  customerName: text("customer_name").notNull(),
-  rating: integer("rating").notNull(),
-  comment: text("comment"),
-  createdAt: timestamp("created_at").default(sql`now()`),
-});
-
-// Insert schemas
-export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  lastLogin: true,
-});
-
-export const insertCategorySchema = createInsertSchema(categories).omit({
-  id: true,
-});
-
-export const insertProductSchema = createInsertSchema(products).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertCartItemSchema = createInsertSchema(cartItems).omit({
-  id: true,
-});
-
-export const insertCouponSchema = createInsertSchema(coupons).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertOrderSchema = createInsertSchema(orders).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertReviewSchema = createInsertSchema(reviews).omit({
-  id: true,
-  createdAt: true,
-});
-
-export interface User {
-  id: string;
-  email: string;
-  passwordHash: string;
-  name: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  isVerified: boolean | null;
-}
-
-export type InsertUser = {
-  email: string;
-  passwordHash: string; // plain en input del server -> se hashea en storage
-  name?: string | null;
-};
-
-export type LoginDataUser = {
-  email: string;
-  password: string;
-};
-
-export interface Subscriber {
-  id: string;
-  email: string;
-  createdAt: Date;
-  verified: boolean | null;
-}
-
-// Login schema
-export const loginSchema = z.object({
-  username: z.string().min(1, "Usuario requerido"),
-  password: z.string().min(1, "Contraseña requerida"),
-});
-
-// Types
-export type AdminUser = typeof adminUsers.$inferSelect;
-export type Category = typeof categories.$inferSelect;
-export type Product = typeof products.$inferSelect;
-export type CartItem = typeof cartItems.$inferSelect;
-export type Coupon = typeof coupons.$inferSelect;
-export type Order = typeof orders.$inferSelect;
-export type Review = typeof reviews.$inferSelect;
-
+export const insertAdminUserSchema = adminUserSchema
+  .omit({ id: true, lastLogin: true, createdAt: true, updatedAt: true })
+  .extend({
+    // en el backend hashéas esto antes de guardar:
+    passwordHash: z.string().min(6),
+    role: z.string().optional(),
+    isActive: z.boolean().optional(),
+  });
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+
+// Para login de admin aceptamos username O email en el campo username:
+export const adminLoginSchema = z.object({
+  username: z.string().min(3), // puede ser email o username
+  password: z.string().min(6),
+});
+export type LoginData = z.infer<typeof adminLoginSchema>;
+
+/* ========= User ========= */
+export const userSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  passwordHash: z.string(),
+  name: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  isVerified: z.boolean().nullable(),
+});
+export type User = z.infer<typeof userSchema>;
+
+export const insertUserSchema = userSchema
+  .omit({ id: true, createdAt: true, updatedAt: true, isVerified: true })
+  .extend({
+    // backend hash
+    passwordHash: z.string().min(6),
+    name: z.string().nullable().optional(),
+  });
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export const userLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+export type LoginDataUser = z.infer<typeof userLoginSchema>;
+
+/* ========= Subscribers ========= */
+export const subscriberSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  createdAt: z.date(),
+  verified: z.boolean().nullable(),
+});
+export type Subscriber = z.infer<typeof subscriberSchema>;
+
+/* ========= Category ========= */
+export const categorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  icon: z.string(),
+  color: z.string(),
+  productCount: z.number().nullable(),
+});
+export type Category = z.infer<typeof categorySchema>;
+
+export const insertCategorySchema = categorySchema.omit({ id: true }).extend({
+  productCount: z.number().nullable().optional(),
+});
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
+
+/* ========= Product ========= */
+export const productSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  price: z.string(), // manejas precios como string en MemStorage
+  description: z.string(),
+  image: z.string(),
+  categoryId: z.string().nullable(),
+  rating: z.string().nullable(), // e.g. "4.5"
+  reviewCount: z.number().nullable(), // e.g. 22
+  inStock: z.boolean().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+export type Product = z.infer<typeof productSchema>;
+
+export const insertProductSchema = productSchema
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    categoryId: z.string().nullable().optional(),
+    rating: z.string().nullable().optional(),
+    reviewCount: z.number().nullable().optional(),
+    inStock: z.boolean().nullable().optional(),
+  });
 export type InsertProduct = z.infer<typeof insertProductSchema>;
-export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+
+/* ========= Coupon ========= */
+export const couponSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  discount: z.string(),
+  isActive: z.boolean().nullable(),
+  expiresAt: z.date().nullable(),
+  createdAt: z.date(),
+});
+export type Coupon = z.infer<typeof couponSchema>;
+
+export const insertCouponSchema = couponSchema
+  .omit({ id: true, createdAt: true })
+  .extend({
+    isActive: z.boolean().nullable().optional(),
+    expiresAt: z.date().nullable().optional(),
+  });
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+
+/* ========= Cart ========= */
+export const cartItemSchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  productId: z.string().nullable(),
+  quantity: z.number(),
+});
+export type CartItem = z.infer<typeof cartItemSchema>;
+
+export const insertCartItemSchema = cartItemSchema.omit({ id: true }).extend({
+  productId: z.string().nullable().optional(),
+  quantity: z.number().int().positive().default(1),
+});
+export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+
+/* ========= Order ========= */
+const orderItemSchema = z.object({
+  name: z.string(),
+  price: z
+    .number()
+    .or(z.string())
+    .transform((v) => Number(v)),
+  quantity: z.number().int().positive().default(1),
+});
+
+export const orderSchema = z.object({
+  id: z.string(),
+  createdAt: z.date().or(z.string()),
+  status: z.string(), // "pending" | "confirmed" | ...
+  customerName: z.string(),
+  customerPhone: z.string(),
+  customerEmail: z.string().email().nullable(),
+  customerDocumentId: z.string().nullable().optional(),
+
+  deliveryMethod: z.enum(["delivery", "pickup"]),
+  deliveryAddress: z.string().nullable(),
+  deliveryCity: z.string().nullable(),
+  deliveryReference: z.string().nullable(),
+
+  items: z.array(orderItemSchema).nullable().optional(),
+
+  subtotal: z.number().or(z.string()),
+  discount: z.string().nullable(),
+  shippingCost: z.string().nullable(),
+  total: z.number().or(z.string()),
+
+  comments: z.string().nullable(),
+});
+export type Order = z.infer<typeof orderSchema>;
+
+export const insertOrderSchema = orderSchema
+  .omit({ id: true, createdAt: true })
+  .extend({
+    createdAt: z.date().optional(),
+  });
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
+
+/* ========= Review ========= */
+export const reviewSchema = z.object({
+  id: z.string(),
+  productId: z.string().nullable(),
+  rating: z.number().min(1).max(5),
+  comment: z.string().nullable(),
+  createdAt: z.date(),
+});
+export type Review = z.infer<typeof reviewSchema>;
+
+export const insertReviewSchema = reviewSchema
+  .omit({ id: true, createdAt: true })
+  .extend({
+    productId: z.string().nullable().optional(),
+    comment: z.string().nullable().optional(),
+  });
 export type InsertReview = z.infer<typeof insertReviewSchema>;
-export type LoginData = z.infer<typeof loginSchema>;

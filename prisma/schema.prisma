@@ -1,0 +1,137 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  username     String
+  email        String    @unique
+  passwordHash String
+  role         String
+  isActive     Boolean?
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("admin_users")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  isVerified   Boolean?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Subscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  verified  Boolean?
+
+  @@map("subscribers")
+}
+
+model Category {
+  id           String    @id @default(uuid())
+  name         String
+  icon         String?
+  color        String?
+  productCount Int?
+  products     Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  description String?
+  image       String?
+  rating      String?
+  reviewCount Int?
+  inStock     Boolean?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews   Review[]
+  cartItems CartItem[]
+
+  @@map("products")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  sessionId String
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  quantity  Int
+
+  @@map("cart_items")
+}
+
+model Coupon {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  discount  Decimal   @db.Decimal(10, 2)
+  isActive  Boolean?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("coupons")
+}
+
+model Order {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  status    String
+
+  subtotal     Decimal  @db.Decimal(10, 2)
+  discount     Decimal? @db.Decimal(10, 2)
+  shippingCost Decimal? @db.Decimal(10, 2)
+  total        Decimal  @db.Decimal(10, 2)
+
+  customerName       String
+  customerPhone      String
+  customerEmail      String?
+  customerDocumentId String?
+
+  deliveryMethod    String
+  deliveryAddress   String?
+  deliveryCity      String?
+  deliveryReference String?
+
+  comments String?
+
+  items Json?
+
+  @@map("orders")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@map("reviews")
+}
