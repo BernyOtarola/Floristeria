@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { z } from "zod";
@@ -12,6 +13,10 @@ import {
   insertCouponSchema,
 } from "@shared/schema";
 import { processAIMessage } from "./services/ai-service";
+import { sendContactEmail } from "./services/mailer";
+
+// Admin permitido (correo exacto)
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? "Fannyaleman0312@gmail.com").toLowerCase();
 
 // ---------------- Tipos de sesión ----------------
 declare module "express-session" {
@@ -42,13 +47,6 @@ const requireAdmin = (req: any, res: any, next: any) => {
   next();
 };
 
-const requireUser = (req: any, res: any, next: any) => {
-  if (!req.session.userId || !req.session.user || req.session.user.role !== "user") {
-    return res.status(403).json({ message: "Solo usuarios" });
-  }
-  next();
-};
-
 // ---------------- Schemas (zod) para auth ----------------
 const userRegisterSchema = z.object({
   email: z.string().email(),
@@ -56,18 +54,17 @@ const userRegisterSchema = z.object({
   name: z.string().min(1).optional(),
 });
 
-const userLoginSchema = z.object({
+const unifiedLoginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
-});
-
-const adminLoginSchema = z.object({
-  email: z.string().email(), // login admin por correo
   password: z.string().min(6),
 });
 
 // ---------------- Registro de rutas ----------------
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Body parsers
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
   // Sessions
   app.use(
     session({
@@ -75,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: false, // true en HTTPS/Reverse proxy
+        secure: false, // ponlo en true detrás de HTTPS/proxy
         sameSite: "lax",
         maxAge: 24 * 60 * 60 * 1000, // 24h
       },
@@ -83,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // ================================
-  // AUTH USUARIOS
+  // AUTH (UNIFICADO)
   // ================================
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -93,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         passwordHash: data.password,
         name: data.name ?? null,
       });
-      // Autologin
+      // Autologin como usuario normal
       req.session.userId = user.id;
       req.session.user = {
         id: user.id,
@@ -107,11 +104,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Login único: primero intenta admin (solo si coincide ADMIN_EMAIL), si no, user
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const data = userLoginSchema.parse(req.body);
-      const user = await storage.authenticateUser({ email: data.email, password: data.password });
-      if (!user) return res.status(401).json({ message: "Credenciales inválidas" });
+      const data = unifiedLoginSchema.parse(req.body);
+      const emailLC = data.email.toLowerCase();
+
+      // 1) Intentar admin (acepta email como "username" en authenticateAdmin)
+      try {
+        const admin = await storage.authenticateAdmin({
+          username: data.email,
+          password: data.password,
+        });
+        if (admin && (admin.email?.toLowerCase() === ADMIN_EMAIL)) {
+          req.session.userId = admin.id;
+          req.session.user = {
+            id: admin.id,
+            email: admin.email,
+            username: admin.username,
+            role: "admin",
+          };
+          return res.json({
+            id: admin.id,
+            email: admin.email,
+            username: admin.username,
+            role: "admin",
+          });
+        }
+      } catch {
+        // ignorar y probar como usuario
+      }
+
+      // 2) Intentar usuario normal
+      const user = await storage.authenticateUser({
+        email: data.email,
+        password: data.password,
+      });
+      if (!user) {
+        return res.status(401).json({ message: "Credenciales inválidas" });
+      }
 
       req.session.userId = user.id;
       req.session.user = {
@@ -120,22 +151,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: user.name ?? null,
         role: "user",
       };
-      res.json(user);
+      res.json({ ...user, role: "user" });
     } catch {
       res.status(400).json({ message: "Datos de login inválidos" });
     }
   });
 
-  app.get("/api/auth/me", requireUser, async (req, res) => {
-    const me = await storage.getUserById(req.session.userId!);
-    if (!me) {
-      req.session.destroy(() => {});
-      return res.status(401).json({ message: "Usuario no encontrado" });
+  // Info de sesión (sirve para user o admin) – protegida
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    try {
+      const sess = req.session.user!;
+      if (sess.role === "admin") {
+        return res.json({ user: sess });
+      }
+      const me = await storage.getUserById(req.session.userId!);
+      if (!me) {
+        req.session.destroy(() => {});
+        return res.status(401).json({ message: "Usuario no encontrado" });
+      }
+      res.json({ user: { ...me, role: "user" } });
+    } catch {
+      res.status(500).json({ message: "Error obteniendo el usuario actual" });
     }
-    res.json({ user: me });
   });
 
-  app.post("/api/auth/logout", requireUser, (req, res) => {
+  // Info de sesión simple (sin proteger) para el cliente
+  app.get("/api/session/me", (req, res) => {
+    res.json({ user: req.session.user ?? null });
+  });
+
+  app.post("/api/auth/logout", requireAuth, (req, res) => {
     req.session.destroy((err) => {
       if (err) return res.status(500).json({ message: "Error al cerrar sesión" });
       res.clearCookie("connect.sid");
@@ -143,45 +188,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // ================================
-  // AUTH ADMIN
-  // ================================
-  // Admin login por correo + password
-  app.post("/api/admin/auth/login", async (req, res) => {
-    try {
-      const { email, password } = adminLoginSchema.parse(req.body);
-      // storage.authenticateAdmin acepta email o username
-      const admin = await storage.authenticateAdmin({ email, password });
-      if (!admin) return res.status(401).json({ message: "Credenciales inválidas" });
-
-      req.session.userId = admin.id;
-      req.session.user = {
-        id: admin.id,
-        email: admin.email,
-        username: admin.username,
-        role: "admin",
-      };
-      res.json({
-        id: admin.id,
-        email: admin.email,
-        username: admin.username,
-        role: admin.role,
-      });
-    } catch {
-      res.status(400).json({ message: "Datos de login inválidos" });
-    }
-  });
-
+  // (Compat) ping de admin para panel
   app.get("/api/admin/auth/me", requireAdmin, async (_req, res) => {
     res.json({ ok: true, role: "admin" });
-  });
-
-  app.post("/api/admin/auth/logout", requireAdmin, (req, res) => {
-    req.session.destroy((err) => {
-      if (err) return res.status(500).json({ message: "Error al cerrar sesión" });
-      res.clearCookie("connect.sid");
-      res.json({ message: "Sesión admin cerrada" });
-    });
   });
 
   // ================================
@@ -194,6 +203,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ ok: true, subscriberId: sub.id });
     } catch (e: any) {
       res.status(400).json({ message: e?.message ?? "Email inválido" });
+    }
+  });
+
+  // ================================
+  // CONTACTO (envío de email)
+  // ================================
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const data = z
+        .object({
+          name: z.string().min(1, "Nombre requerido"),
+          email: z.string().email("Email inválido"),
+          message: z.string().min(5, "Mensaje muy corto"),
+        })
+        .parse(req.body);
+
+      await sendContactEmail(data);
+      res.json({ ok: true });
+    } catch (e: any) {
+      const msg = e?.message || "No se pudo enviar el mensaje";
+      res.status(400).json({ message: msg });
     }
   });
 
@@ -276,10 +306,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const success = await storage.deleteProduct(req.params.id);
       if (!success) return res.status(404).json({ message: "Product not found" });
-      res.status(204).send();
     } catch {
-      res.status(500).json({ message: "Error deleting product" });
+      return res.status(500).json({ message: "Error deleting product" });
     }
+    res.status(204).send();
   });
 
   // Coupons

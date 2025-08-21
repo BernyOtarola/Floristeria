@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,11 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Flower,
   LayoutDashboard,
@@ -49,64 +45,39 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/admin/dashboard",
-    icon: LayoutDashboard,
-    description: "Vista general del negocio"
-  },
-  {
-    title: "Productos",
-    href: "/admin/products",
-    icon: Package,
-    description: "Gestionar flores y arreglos"
-  },
-  {
-    title: "Categorías",
-    href: "/admin/categories",
-    icon: Tag,
-    description: "Organizar productos"
-  },
-  {
-    title: "Cupones",
-    href: "/admin/coupons",
-    icon: Ticket,
-    description: "Códigos de descuento"
-  },
-  {
-    title: "Pedidos",
-    href: "/admin/orders",
-    icon: ShoppingBag,
-    badge: "3",
-    description: "Gestionar ventas"
-  },
-  {
-    title: "Reportes",
-    href: "/admin/reports",
-    icon: BarChart3,
-    description: "Análisis y estadísticas"
-  },
-  {
-    title: "Configuración",
-    href: "/admin/settings",
-    icon: Settings,
-    description: "Ajustes del sistema"
-  },
+  { title: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, description: "Vista general del negocio" },
+  { title: "Productos", href: "/admin/products", icon: Package, description: "Gestionar flores y arreglos" },
+  { title: "Categorías", href: "/admin/categories", icon: Tag, description: "Organizar productos" },
+  { title: "Cupones", href: "/admin/coupons", icon: Ticket, description: "Códigos de descuento" },
+  { title: "Pedidos", href: "/admin/orders", icon: ShoppingBag, badge: "3", description: "Gestionar ventas" },
+  { title: "Reportes", href: "/admin/reports", icon: BarChart3, description: "Análisis y estadísticas" },
+  { title: "Configuración", href: "/admin/settings", icon: Settings, description: "Ajustes del sistema" },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuth(); // <-- sin loading
   const { toast } = useToast();
+
+  // Guardia: solo admin. Redirige cuando sabemos que no hay sesión (user === null)
+  // o cuando hay sesión pero rol !== 'admin'.
+  useEffect(() => {
+    if (user === null) {
+      // sesión ausente
+      setLocation("/login");
+      return;
+    }
+    if (user && user.role !== "admin") {
+      // sesión de usuario normal
+      setLocation("/");
+    }
+  }, [user, setLocation]);
 
   const handleLogout = async () => {
     await logout();
-    toast({
-      title: "Sesión cerrada",
-      description: "Has cerrado sesión exitosamente",
-    });
-    setLocation("/admin/login");
+    toast({ title: "Sesión cerrada", description: "Has cerrado sesión exitosamente" });
+    setLocation("/login");
   };
 
   const handleNavigate = (href: string) => {
@@ -114,11 +85,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     setIsMobileMenuOpen(false);
   };
 
-  const goToStore = () => {
-    setLocation("/");
-  };
+  const goToStore = () => setLocation("/");
 
-  const currentPath = window.location.pathname;
+  const currentPath =
+    typeof window !== "undefined" ? window.location.pathname : "/admin";
 
   const SidebarContent = () => (
     <div className="h-full flex flex-col">
@@ -138,7 +108,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {navigation.map((item) => {
-          const isActive = currentPath === item.href || currentPath.startsWith(item.href + "/");
+          const isActive =
+            currentPath === item.href || currentPath.startsWith(item.href + "/");
           return (
             <Button
               key={item.href}
@@ -167,13 +138,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         })}
       </nav>
 
-      {/* Store Link */}
+      {/* Link a tienda */}
       <div className="p-4 border-t">
-        <Button
-          variant="outline"
-          className="w-full justify-start"
-          onClick={goToStore}
-        >
+        <Button variant="outline" className="w-full justify-start" onClick={goToStore}>
           <Store className="w-4 h-4 mr-2" />
           Ver Tienda
         </Button>
@@ -181,45 +148,45 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 
+  const displayName =
+    (user as any)?.username || (user as any)?.name || user?.email || "Administrador";
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
+      {/* Sidebar desktop */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <Card className="h-full rounded-none border-0 border-r">
           <SidebarContent />
         </Card>
       </div>
 
-      {/* Mobile Sidebar */}
+      {/* Sidebar móvil */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
         <SheetContent side="left" className="p-0 w-72">
           <SidebarContent />
         </SheetContent>
       </Sheet>
 
-      {/* Main Content */}
+      {/* Contenido principal */}
       <div className="lg:pl-72">
         {/* Top Bar */}
         <header className="sticky top-0 z-40 bg-white border-b">
           <div className="flex h-16 items-center gap-x-4 px-4 sm:gap-x-6 sm:px-6 lg:px-8">
-            {/* Mobile menu button */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden"
-                  onClick={() => setIsMobileMenuOpen(true)}
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
+            {/* Botón menú móvil */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Abrir menú"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
 
             <div className="flex flex-1 items-center justify-between">
-              {/* Search */}
+              {/* Buscar */}
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   placeholder="Buscar productos, pedidos..."
@@ -227,9 +194,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 />
               </div>
 
-              {/* Right side */}
+              {/* Acciones derecha */}
               <div className="flex items-center gap-x-4">
-                {/* Notifications */}
+                {/* Notificaciones */}
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
                   <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs p-0">
@@ -237,7 +204,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   </Badge>
                 </Button>
 
-                {/* User Menu */}
+                {/* Menú usuario */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -249,10 +216,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user?.username}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                          {user?.email}
-                        </p>
+                        <p className="text-sm font-medium leading-none">{displayName}</p>
+                        {user?.email && (
+                          <p className="text-xs leading-none text-muted-foreground">
+                            {user.email}
+                          </p>
+                        )}
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -282,9 +251,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

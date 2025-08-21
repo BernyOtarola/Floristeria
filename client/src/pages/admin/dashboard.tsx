@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FLORISTERIA_CONFIG, whatsappLink } from "@shared/config";
 import {
   Package,
   ShoppingCart,
@@ -17,7 +18,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import AdminLayout from "@/components/admin-layout";
-import { FLORISTERIA_CONFIG } from "@shared/config";
 import type { Product, Order, Category } from "@shared/schema";
 
 // --------- Utils de fecha seguras ---------
@@ -49,7 +49,9 @@ export default function AdminDashboard() {
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/products", { credentials: "include" });
+      const res = await fetch("/api/admin/products", {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Error obteniendo productos");
       return res.json();
     },
@@ -67,7 +69,9 @@ export default function AdminDashboard() {
   const { data: categories } = useQuery<Category[]>({
     queryKey: ["/api/admin/categories"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/categories", { credentials: "include" });
+      const res = await fetch("/api/admin/categories", {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Error obteniendo categorías");
       return res.json();
     },
@@ -77,7 +81,8 @@ export default function AdminDashboard() {
   const totalProducts = products?.length || 0;
   const totalOrders = orders?.length || 0;
   const totalCategories = categories?.length || 0;
-  const productsInStock = products?.filter((p) => (p as any).inStock).length || 0;
+  const productsInStock =
+    products?.filter((p) => (p as any).inStock).length || 0;
   const productsOutOfStock = totalProducts - productsInStock;
 
   // Recent orders (last 7 days)
@@ -229,7 +234,9 @@ export default function AdminDashboard() {
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                     >
                       <div>
-                        <p className="font-medium">{(order as any).customerName}</p>
+                        <p className="font-medium">
+                          {(order as any).customerName}
+                        </p>
                         <p className="text-sm text-gray-600">
                           {formatDateCR((order as any).createdAt, true)}
                         </p>
@@ -300,7 +307,16 @@ export default function AdminDashboard() {
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium mb-2">Información de Contacto</h4>
                 <p className="text-sm text-gray-600">
-                  📱 {FLORISTERIA_CONFIG.contact.whatsapp}
+                  + 📱 +{" "}
+                  <a
+                    href={whatsappLink()} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline"
+                    title="Abrir WhatsApp"
+                  >
+                    {FLORISTERIA_CONFIG.contact.phoneDisplay}
+                  </a>
                 </p>
                 <p className="text-sm text-gray-600">
                   📧 {FLORISTERIA_CONFIG.contact.email}
@@ -328,7 +344,11 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {products
-                  .filter((p) => (p as any).rating && parseFloat(String((p as any).rating)) > 4.0)
+                  .filter(
+                    (p) =>
+                      (p as any).rating &&
+                      parseFloat(String((p as any).rating)) > 4.0
+                  )
                   .sort(
                     (a, b) =>
                       parseFloat(String((b as any).rating || "0")) -
@@ -346,10 +366,14 @@ export default function AdminDashboard() {
                         className="w-12 h-12 rounded-lg object-cover"
                       />
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{(product as any).name}</p>
+                        <p className="font-medium text-sm">
+                          {(product as any).name}
+                        </p>
                         <div className="flex items-center mt-1">
                           <Star className="w-4 h-4 text-yellow-400 mr-1" />
-                          <span className="text-sm">{(product as any).rating}</span>
+                          <span className="text-sm">
+                            {(product as any).rating}
+                          </span>
                           <span className="text-xs text-gray-500 ml-1">
                             ({(product as any).reviewCount})
                           </span>

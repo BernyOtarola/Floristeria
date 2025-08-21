@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
-import AdminLogin from "@/pages/admin-login";
+
 import ProtectedRoute from "@/components/protected-route";
 
 // Auth (usuario)
@@ -62,8 +62,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
 
-      {/* Admin login */}
-      <Route path="/admin/login" component={AdminLogin} />
+      
 
       {/* Atajo: /admin -> /admin/dashboard */}
       <Route path="/admin">

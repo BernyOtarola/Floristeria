@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,16 @@ import { FaWhatsapp } from "react-icons/fa";
 import { useCart } from "@/hooks/use-cart";
 import { generateWhatsAppMessage } from "@/lib/whatsapp";
 import { useToast } from "@/hooks/use-toast";
+import { FLORISTERIA_CONFIG, whatsappLink } from "@shared/config";
 
 interface CheckoutModalProps {
   onClose: () => void;
 }
 
+type DeliveryMethod = "pickup" | "delivery";
+
 export default function CheckoutModal({ onClose }: CheckoutModalProps) {
-  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("delivery");
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("delivery");
   const [customerData, setCustomerData] = useState({
     firstName: "",
     lastName: "",
@@ -31,49 +34,52 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
   const { cart, appliedCoupon, clearCart } = useCart();
   const { toast } = useToast();
 
+  const currencyCode = FLORISTERIA_CONFIG.currency.code; // "CRC"
+  const currencySymbol = FLORISTERIA_CONFIG.currency.symbol; // "₡"
+  const deliveryCfg = FLORISTERIA_CONFIG.services.delivery;
+
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("es-CO", {
+    return new Intl.NumberFormat("es-CR", {
       style: "currency",
-      currency: "COP",
+      currency: currencyCode,
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(price);
   };
 
-  const calculateSubtotal = () => {
-    return cart.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
-  };
+  const subtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0),
+    [cart]
+  );
 
-  const calculateDiscount = () => {
+  const discount = useMemo(() => {
     if (!appliedCoupon) return 0;
-    const subtotal = calculateSubtotal();
-    return (subtotal * parseFloat(appliedCoupon.discount)) / 100;
-  };
+    return (subtotal * Number(appliedCoupon.discount)) / 100;
+  }, [appliedCoupon, subtotal]);
 
-  const calculateShipping = () => {
-    return deliveryMethod === "delivery" ? 8000 : 0;
-  };
+  const shipping = useMemo(() => {
+    if (deliveryMethod !== "delivery") return 0;
+    if (deliveryCfg.enabled !== true) return 0;
+    // Envío gratis si supera el umbral
+    if (deliveryCfg.freeThreshold && subtotal >= deliveryCfg.freeThreshold) return 0;
+    return deliveryCfg.cost ?? 0;
+  }, [deliveryMethod, deliveryCfg, subtotal]);
 
-  const calculateTotal = () => {
-    const subtotal = calculateSubtotal();
-    const discount = calculateDiscount();
-    const shipping = calculateShipping();
-    return subtotal - discount + shipping;
-  };
+  const total = useMemo(() => subtotal - discount + shipping, [subtotal, discount, shipping]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setCustomerData(prev => ({
+    setCustomerData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
   const validateForm = () => {
-    const requiredFields = ["firstName", "lastName", "phone", "documentId"];
+    const required: (keyof typeof customerData)[] = ["firstName", "lastName", "phone", "documentId"];
     if (deliveryMethod === "delivery") {
-      requiredFields.push("address", "city");
+      required.push("address", "city");
     }
-
-    return requiredFields.every(field => customerData[field as keyof typeof customerData].trim() !== "");
+    return required.every((k) => customerData[k].trim() !== "");
   };
 
   const handleSendWhatsAppOrder = () => {
@@ -86,28 +92,29 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
       return;
     }
 
-    const cartItems = cart.map(item => ({
+    const cartItems = cart.map((item) => ({
       product: item.product,
       quantity: item.quantity,
-      price: parseFloat(item.product.price) * item.quantity
+      price: Number(item.product.price) * item.quantity,
     }));
 
     const orderSummary = {
-      subtotal: calculateSubtotal(),
-      discount: calculateDiscount(),
-      shipping: calculateShipping(),
-      total: calculateTotal()
+      subtotal,
+      discount,
+      shipping,
+      total,
     };
 
     const message = generateWhatsAppMessage(cartItems, orderSummary, {
       deliveryMethod,
       customerData,
       comments,
-      appliedCoupon
+      appliedCoupon,
     });
 
-    const whatsappUrl = `https://wa.me/573001234567?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    // Usa el número configurado (+506 84630055) desde @shared/config
+    const whatsappUrl = whatsappLink(message);
+    window.open(whatsappUrl, "_blank");
 
     toast({
       title: "Pedido enviado",
@@ -129,14 +136,23 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
             </Button>
           </div>
 
-          {/* Delivery Options */}
+          {/* Opciones de entrega */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold mb-4">Opciones de Entrega</h3>
-            <RadioGroup value={deliveryMethod} onValueChange={(value: "pickup" | "delivery") => setDeliveryMethod(value)}>
+            <RadioGroup
+              value={deliveryMethod}
+              onValueChange={(value) => setDeliveryMethod(value as DeliveryMethod)}
+            >
               <div className="grid grid-cols-2 gap-4">
-                <Label className="relative">
+                <Label className="relative cursor-pointer">
                   <RadioGroupItem value="pickup" className="sr-only" />
-                  <div className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${deliveryMethod === "pickup" ? "border-primary bg-pink-50" : "border-gray-300 hover:border-primary"}`}>
+                  <div
+                    className={`border-2 rounded-lg p-4 transition-colors ${
+                      deliveryMethod === "pickup"
+                        ? "border-primary bg-pink-50"
+                        : "border-gray-300 hover:border-primary"
+                    }`}
+                  >
                     <div className="text-center">
                       <Store className="w-8 h-8 text-primary mx-auto mb-2" />
                       <p className="font-medium">Recoger en Tienda</p>
@@ -144,14 +160,24 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
                     </div>
                   </div>
                 </Label>
-                
-                <Label className="relative">
+
+                <Label className="relative cursor-pointer">
                   <RadioGroupItem value="delivery" className="sr-only" />
-                  <div className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${deliveryMethod === "delivery" ? "border-primary bg-pink-50" : "border-gray-300 hover:border-primary"}`}>
+                  <div
+                    className={`border-2 rounded-lg p-4 transition-colors ${
+                      deliveryMethod === "delivery"
+                        ? "border-primary bg-pink-50"
+                        : "border-gray-300 hover:border-primary"
+                    }`}
+                  >
                     <div className="text-center">
                       <Truck className="w-8 h-8 text-primary mx-auto mb-2" />
                       <p className="font-medium">Delivery</p>
-                      <p className="text-sm text-gray-600">{formatPrice(8000)}</p>
+                      <p className="text-sm text-gray-600">
+                        {subtotal >= (deliveryCfg.freeThreshold ?? Infinity)
+                          ? "Gratis (supera el mínimo)"
+                          : formatPrice(deliveryCfg.cost ?? 0)}
+                      </p>
                     </div>
                   </div>
                 </Label>
@@ -159,10 +185,10 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
             </RadioGroup>
           </div>
 
-          {/* Customer Information Form */}
+          {/* Datos del cliente */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold mb-4">Información del Cliente</h3>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -192,7 +218,7 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <Label className="block text-sm font-medium text-gray-700 mb-2">
                   Celular / WhatsApp *
@@ -202,14 +228,14 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
                   name="phone"
                   value={customerData.phone}
                   onChange={handleInputChange}
-                  placeholder="+57 300 123 4567"
+                  placeholder="Tu número de celular"
                   required
                 />
               </div>
-              
+
               <div>
                 <Label className="block text-sm font-medium text-gray-700 mb-2">
-                  Identificación / DNI *
+                  Identificación / Cédula *
                 </Label>
                 <Input
                   type="text"
@@ -221,7 +247,7 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
                 />
               </div>
 
-              {/* Delivery-specific fields */}
+              {/* Campos para envío a domicilio */}
               {deliveryMethod === "delivery" && (
                 <>
                   <div>
@@ -237,7 +263,7 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <Label className="block text-sm font-medium text-gray-700 mb-2">
                       Ciudad *
@@ -251,7 +277,7 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <Label className="block text-sm font-medium text-gray-700 mb-2">
                       Referencia
@@ -269,32 +295,40 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
             </div>
           </div>
 
-          {/* Order Summary */}
+          {/* Resumen */}
           <Card className="p-4 mb-8">
             <h3 className="text-lg font-semibold mb-4">Resumen del Pedido</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span>{formatPrice(calculateSubtotal())}</span>
+                <span>{formatPrice(subtotal)}</span>
               </div>
               {appliedCoupon && (
                 <div className="flex justify-between text-green-600">
                   <span>Descuento ({appliedCoupon.discount}%):</span>
-                  <span>-{formatPrice(calculateDiscount())}</span>
+                  <span>-{formatPrice(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Envío:</span>
-                <span>{formatPrice(calculateShipping())}</span>
+                <span>{formatPrice(shipping)}</span>
               </div>
+              {deliveryMethod === "delivery" &&
+                deliveryCfg.freeThreshold &&
+                subtotal < deliveryCfg.freeThreshold && (
+                  <p className="text-xs text-gray-500">
+                    Envío gratis sobre {currencySymbol}
+                    {deliveryCfg.freeThreshold.toLocaleString("es-CR")}.
+                  </p>
+                )}
               <div className="flex justify-between font-bold text-lg border-t pt-2">
                 <span>Total a Pagar:</span>
-                <span>{formatPrice(calculateTotal())}</span>
+                <span>{formatPrice(total)}</span>
               </div>
             </div>
           </Card>
 
-          {/* Comments */}
+          {/* Comentarios */}
           <div className="mb-8">
             <Label className="block text-sm font-medium text-gray-700 mb-2">
               Comentarios al Vendedor
@@ -307,8 +341,8 @@ export default function CheckoutModal({ onClose }: CheckoutModalProps) {
             />
           </div>
 
-          {/* Submit Button */}
-          <Button 
+          {/* Enviar por WhatsApp */}
+          <Button
             onClick={handleSendWhatsAppOrder}
             className="w-full bg-green-500 hover:bg-green-600 text-lg py-4"
           >

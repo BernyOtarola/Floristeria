@@ -1,49 +1,51 @@
+// server/services/ai-service.ts
 import OpenAI from "openai";
+import { FLORISTERIA_CONFIG } from "@shared/config";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-// Temporalmente deshabilitado - descomentar cuando tengas OpenAI configurado
-// const openai = new OpenAI({ 
-//   apiKey: process.env.OPENAI_API_KEY 
-// });
+type ProcessArgs = { message: string; context?: any };
 
-interface ChatMessage {
-  message: string;
-  context?: {
-    isQuickQuestion?: boolean;
-  };
+const enabled = !!process.env.OPENAI_API_KEY;
+const client = enabled ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }) : null;
+
+function fallback(_text: string) {
+  const tel = FLORISTERIA_CONFIG.contact.phoneDisplay;
+  const wa = `https://wa.me/${FLORISTERIA_CONFIG.contact.whatsappDigits}`;
+  const maps = FLORISTERIA_CONFIG.location.googleMapsShareUrl;
+  return (
+    `Puedo ayudarte con horarios, ubicación, envíos y productos.\n` +
+    `WhatsApp: ${tel} (${wa}) · Ubicación: ${maps}`
+  );
 }
 
-export async function processAIMessage(message: ChatMessage): Promise<string> {
-  // Respuestas simuladas hasta que OpenAI esté configurado
-  console.log('🤖 Procesando mensaje (modo simulado):', message.message);
-  
-  try {
-    // Respuestas predefinidas para simular el asistente
-    const quickResponses: { [key: string]: string } = {
-      'hola': '¡Hola! Bienvenido a FloraVista. Soy tu asistente virtual. ¿En qué puedo ayudarte?',
-      'productos': 'Tenemos 4 categorías principales: Rosas (12 productos), Ramos (18 productos), Arreglos (15 productos) y Ocasiones especiales (24 productos).',
-      'horarios': 'Nuestros horarios son: Lunes a Sábado de 8:00 AM a 7:00 PM, y Domingos de 9:00 AM a 5:00 PM.',
-      'ubicacion': 'Estamos ubicados en Calle 123 #45-67, Centro Comercial Plaza, Medellín, Colombia.',
-      'envios': 'Ofrecemos delivery por $8.000 COP o recogida gratuita en tienda.',
-      'contacto': 'Puedes contactarnos por WhatsApp al +57 300 123 4567.',
-      'precios': 'Nuestros precios van desde $38.000 hasta $65.000 COP dependiendo del arreglo.',
-      'cupones': 'Tenemos cupones disponibles: FLORES10 (10%), PRIMAVERA15 (15%), AMOR20 (20%).'
-    };
+export async function processAIMessage({ message }: ProcessArgs) {
+  if (!enabled || !client) {
+    return `¡Hola! Soy el asistente de ${FLORISTERIA_CONFIG.name}. ${fallback(message)}`;
+  }
 
-    const userMessage = message.message.toLowerCase();
-    
-    // Buscar respuesta que coincida
-    for (const [key, response] of Object.entries(quickResponses)) {
-      if (userMessage.includes(key)) {
-        return `${response} (Nota: Asistente en modo demo - OpenAI no configurado)`;
-      }
-    }
-    
-    // Respuesta por defecto
-    return `Gracias por tu mensaje: "${message.message}". Soy el asistente de FloristeriaValeska en modo demo. Las funciones completas de IA estarán disponibles cuando se configure OpenAI. ¿Puedo ayudarte con información sobre productos, horarios, ubicación o envíos?`;
-    
-  } catch (error) {
-    console.error("Error en asistente simulado:", error);
-    return "Disculpa, hay un problema técnico. Por favor contacta directamente al +506 84630055.";
+  const system = `
+Eres el asistente de ${FLORISTERIA_CONFIG.name} (floristería en ${FLORISTERIA_CONFIG.location.city}, Costa Rica).
+Sé breve, cordial y útil.
+Información:
+- Horarios: ${FLORISTERIA_CONFIG.hours.weekdays}; ${FLORISTERIA_CONFIG.hours.weekends}; ${FLORISTERIA_CONFIG.hours.sunday}
+- Dirección: ${FLORISTERIA_CONFIG.location.address} (Maps: ${FLORISTERIA_CONFIG.location.googleMapsShareUrl})
+- WhatsApp: ${FLORISTERIA_CONFIG.contact.phoneDisplay}
+- Envíos a: ${FLORISTERIA_CONFIG.services.delivery.areas.join(", ")}; costo CRC ${FLORISTERIA_CONFIG.services.delivery.cost}, gratis sobre CRC ${FLORISTERIA_CONFIG.services.delivery.freeThreshold}.
+Cuando te pidan comprar o pedir, sugiere escribir por WhatsApp con el enlace: https://wa.me/${FLORISTERIA_CONFIG.contact.whatsappDigits}
+Evita respuestas largas.
+`;
+
+  try {
+    const chat = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: message || "" },
+      ],
+      temperature: 0.3,
+    });
+    const text = chat.choices[0]?.message?.content?.trim();
+    return text || fallback(message);
+  } catch {
+    return fallback(message);
   }
 }
